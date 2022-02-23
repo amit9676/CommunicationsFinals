@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter.ttk import Progressbar
+
 class GUI:
     def __init__(self, clientMain):
         self.clientMain = clientMain
