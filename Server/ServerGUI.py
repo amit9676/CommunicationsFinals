@@ -20,6 +20,11 @@ class GUI:
         self.__t.place(x=75, y=5)
         self.__root.mainloop()
 
+    def displayData(self):
+        print("hi")
+        #for item in data:
+            #self.__t.insert(INSERT,item) # --add text here--
+
 
 
 

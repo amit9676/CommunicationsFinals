@@ -5,7 +5,7 @@ import threading
 class ServerController:
     def __init__(self):
         self.__active = False
-        self.__Server = MainServer.Server()
+        self.__Server = MainServer.Server(self)
         self.ServerThread = threading.Thread(target=self.activate)
         self.ServerThread.daemon = True
         self.ServerThread.start()
@@ -40,3 +40,6 @@ class ServerController:
     def deActivate(self):
         if(self.__Server.active == True):
             self.__Server.active = False
+
+    def updateClients(self, data):
+        self.__GUI.displayData()
