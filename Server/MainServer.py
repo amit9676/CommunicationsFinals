@@ -22,6 +22,7 @@ class Server:
         self.activate()
 
     def terminate_client(self, client):
+        print("terminate client of: ", client.name)
         self.clients.remove(client)
         client.close()
         self.updateUsers()
