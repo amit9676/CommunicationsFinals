@@ -60,6 +60,17 @@ class Server:
                 data_string = pickle.dumps(list)
                 c.client.send(data_string)
 
+
+    def private(self,packet):
+        addresee = packet[2]
+        for c in self.clients:
+            if(addresee == c.name):
+                data_string = pickle.dumps(packet)
+                c.client.send(data_string)
+                return True
+        return False
+
+
     def broadcast(self, packet):
         data_string = pickle.dumps(packet)
         for c in self.clients:
@@ -88,6 +99,14 @@ class Server:
                     self.broadcast(packet)
                 elif (packet[0] == "update"):
                     self.updateUsers()
+                elif (packet[0] == "private"):
+                    if(self.private(packet)):
+                        data = pickle.dumps(packet)
+                        client.send(data)
+                    else:
+                        error = ("error",)
+                        data = pickle.dumps(error)
+                        client.send(data)
                 elif (packet[0] == "validate"):
                     answer = None
                     if self.validate(packet[1], currentClient) == True:

@@ -89,9 +89,13 @@ class Client:
         #self.sock.send(message.encode("utf-8"))
         #server method
 
-    def sendBroadcast(self, message):
+    def sendToServer(self, message, addresse):
         #server method
-        packet = ("broadcast",self.name,message)
+        packet = None
+        if(addresse == ""):
+            packet = ("broadcast",self.name,message)
+        else:
+            packet = ("private",self.name,addresse,message)
         data_string = pickle.dumps(packet)
         self.sock.send(data_string)
 
@@ -100,10 +104,10 @@ class Client:
 
     def basicGUI(self):
         self.root2 = Tk()
-        self.root2.title("Client")
+        self.root2.title("chatroom - " + self.name)
         self.root2.geometry("955x450")
         self.root2.resizable(False, False)
-        self.chatLabel = Label(self.root2, text='broadcast', font=("lucida", 13)).place(x=1,y=5)
+        self.chatLabel = Label(self.root2, text='chat', font=("lucida", 13)).place(x=1,y=5)
         self.chatLabel2 = Label(self.root2, text='active users', font=("lucida", 13)).place(x=671,y=5)
 
         self.t1 = Text(self.root2,width=30, height=25)
@@ -142,8 +146,10 @@ class Client:
 
     def sendMessageOut(self):
         message = self.eMsg.get()
-        self.sendBroadcast(message)
+        addressee = self.sendToEntry.get()
+        self.sendToServer(message, addressee)
         #gui method
+
 
 
     def requestUpdate(self):
@@ -161,7 +167,6 @@ class Client:
         #gui method
 
     def insertUsers(self,packet):
-        print("??!?1")
         self.t1.configure(state="normal", cursor="arrow")
         self.t1.delete('1.0', END)
         for p in range(1,len(packet)):
@@ -189,7 +194,14 @@ class Client:
                 data = self.sock.recv(1024)
                 packet = pickle.loads(data)
                 if packet[0] == "broadcast" and self.GuiDone:
-                    self.insertMessage(packet[1] + ": " + packet[2])
+                    self.insertMessage(packet[1] + " (broadcast): " + packet[2])
+                elif packet[0] == "private" and self.GuiDone:
+                    if(self.name == packet[1]):
+                        self.insertMessage(packet[1] + " (to " + packet[2] +"): " + packet[3])
+                    else:
+                        self.insertMessage(packet[1] + " (to you): " + packet[3])
+                elif packet[0] == "error" and self.GuiDone:
+                    self.insertMessage("message could not be sent")
                 elif packet[0] == "update":
                     self.insertUsers(packet)
                 elif packet[0] == "validate":
