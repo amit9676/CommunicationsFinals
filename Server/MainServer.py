@@ -22,6 +22,7 @@ class Server:
         self.__server.listen(15)
         self.clients = []
         self.threads = []
+        self.files = ["one", "two", "three"]
 
         self.activate()
 
@@ -31,7 +32,7 @@ class Server:
     def terminate_client(self, client):
         print("terminate client of: ", client.name)
         self.clients.remove(client)
-        client.close()
+        client.client.close()
         self.updateUsers()
 
     def activate(self):
@@ -106,6 +107,9 @@ class Server:
         requester.name = name
         return True
 
+    def download(self):
+        pass
+
     def clientListen(self, client):
         currentClient = None
         for c in self.clients:
@@ -121,6 +125,13 @@ class Server:
                     self.broadcast(packet)
                 elif (packet[0] == "update"):
                     self.updateUsers()
+                elif packet[0] == "download":
+                    print(packet[1])
+                    self.download()
+                elif (packet[0] == "filesRequest"):
+                    packet = ("filesRequest", self.files)
+                    files = pickle.dumps(packet)
+                    client.send(files)
                 elif (packet[0] == "private"):
                     if (self.private(packet)):
                         data = pickle.dumps(packet)
