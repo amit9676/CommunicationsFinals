@@ -12,7 +12,7 @@ class Server:
         # check option if it fails
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__server.bind((self.__host, self.__port))
-        self.__server.listen()
+        self.__server.listen(15)
         self.clients = []
         self.threads = []
 
@@ -20,6 +20,11 @@ class Server:
 
     def initilize(self):
         self.activate()
+
+    def terminate_client(self, client):
+        self.clients.remove(client)
+        client.close()
+        self.updateUsers()
 
     def activate(self):
         print('Ready to serve..')
@@ -53,26 +58,37 @@ class Server:
         list = []
         list.append("update")
         for c in self.clients:
-            if (c.active == True):
+            if c.active == True:
                 list.append(c.name)
         for c in self.clients:
-            if (c.active == True):
+            if c.active == True:
                 data_string = pickle.dumps(list)
-                c.client.send(data_string)
+                try:
+                    c.client.send(data_string)
+                except:
+                    self.terminate_client(c)
+                    break
 
     def private(self, packet):
         addresee = packet[2]
         for c in self.clients:
-            if (addresee == c.name):
+            if addresee == c.name:
                 data_string = pickle.dumps(packet)
-                c.client.send(data_string)
-                return True
+                try:
+                    c.client.send(data_string)
+                    return True
+                except:
+                    self.terminate_client(c)
+                    break
         return False
 
     def broadcast(self, packet):
         data_string = pickle.dumps(packet)
         for c in self.clients:
-            c.client.send(data_string)
+            try:
+                c.client.send(data_string)
+            except:
+                self.terminate_client(c)
 
     def validate(self, name, requester):
         for c in self.clients:
@@ -124,9 +140,7 @@ class Server:
                 # else:
                 #     self.broadcast(message)
             except:
-                self.clients.remove(currentClient)
-                client.close()
-                self.updateUsers()
+                self.terminate_client(currentClient)
                 break
 
 # while True:
