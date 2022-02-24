@@ -3,22 +3,20 @@ import threading
 from Client import SingleClient
 import pickle
 
+
 class Server:
     def __init__(self):
         self.__host = "127.0.0.1"
         self.__port = 9090
         self.active = True
-        #check option if it fails
+        # check option if it fails
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.__server.bind((self.__host,self.__port))
+        self.__server.bind((self.__host, self.__port))
         self.__server.listen()
         self.clients = []
         self.threads = []
 
         self.activate()
-
-
-
 
     def initilize(self):
         self.activate()
@@ -28,20 +26,22 @@ class Server:
         counter = 1
 
         while self.active:
-
             client, address = self.__server.accept()
-
-            #client.send("name".encode("utf-8"))
-            name = client.recv(1024)
-            newClient = SingleClient.SingleClient(counter,client,name.decode('utf-8'))
+            newClient = SingleClient.SingleClient(counter, client, "undefined")
             self.clients.append(newClient)
-
-            print(f"connection established with {newClient.name}")
-            counter+=1
-            print(str(len(self.clients)))
-            th =threading.Thread(target=self.clientListen, args=(client,))
+            th = threading.Thread(target=self.clientListen, args=(client,))
             th.start()
-            #print("thread count" + str(threading.active_count()))
+
+            # client.send("name".encode("utf-8"))
+            # name = client.recv(1024)
+            # newClient = SingleClient.SingleClient(counter,client,name.decode('utf-8'))
+            # self.clients.append(newClient)
+
+            # print(f"connection established with {newClient.name}")
+            # counter+=1
+            # print(str(len(self.clients)))
+
+            # print("thread count" + str(threading.active_count()))
 
         print("connection closed")
         self.endServer()
@@ -49,20 +49,29 @@ class Server:
     def endServer(self):
         self.__server.close()
 
-
     def updateUsers(self):
         list = []
         list.append("update")
         for c in self.clients:
-            list.append(c.name)
+            if(c.active == True):
+                list.append(c.name)
         for c in self.clients:
-            data_string = pickle.dumps(list)
-            c.client.send(data_string)
+            if(c.active == True):
+                data_string = pickle.dumps(list)
+                c.client.send(data_string)
 
-    def broadcast(self,packet):
+    def broadcast(self, packet):
         data_string = pickle.dumps(packet)
         for c in self.clients:
             c.client.send(data_string)
+
+    def validate(self, name, requester):
+        for c in self.clients:
+            if c.active == True and c.name == name:
+                return False
+        requester.active = True
+        requester.name = name
+        return True
 
     def clientListen(self, client):
         currentClient = None
@@ -75,16 +84,23 @@ class Server:
             try:
                 data = client.recv(4096)
                 packet = pickle.loads(data)
-                if(packet[0] == "broadcast"):
+                if (packet[0] == "broadcast"):
                     self.broadcast(packet)
-                elif(packet[0] == "update"):
+                elif (packet[0] == "update"):
                     self.updateUsers()
-                #elif(packet[0] == "validate"):
-                    #self.validate(packet[1])
-                #print(this)
-                #print(":):)!")
-                #message = currentClient.name + ": " + client.recv(1024).decode('utf-8')
-                #self.broadcast(message)
+                elif (packet[0] == "validate"):
+                    answer = None
+                    if self.validate(packet[1], currentClient) == True:
+                        answer = ("validate", True)
+
+                    else:
+                        answer = ("validate", False)
+                    data = pickle.dumps(answer)
+                    client.send(data)
+                # print(this)
+                # print(":):)!")
+                # message = currentClient.name + ": " + client.recv(1024).decode('utf-8')
+                # self.broadcast(message)
                 # if message == "out":
                 #     print("clie")
                 #     self.clients.remove(client)
@@ -96,22 +112,12 @@ class Server:
                 self.updateUsers()
                 break
 
-
-
-
-
-
-
 # while True:
 #     print('Ready to serve...')
 #     client, address = server.accept()
 #     print("connection established")
 #
 # server.close()
-
-
-
-
 
 
 # clients = []

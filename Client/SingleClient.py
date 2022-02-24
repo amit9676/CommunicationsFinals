@@ -3,3 +3,4 @@ class SingleClient:
         self.id = id
         self.client = client
         self.name = name
+        self.active = False
