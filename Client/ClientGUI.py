@@ -59,7 +59,3 @@ class GUI:
         message = self.eMsg.get()
         self.clientMain.write(message)
 
-
-
-
-

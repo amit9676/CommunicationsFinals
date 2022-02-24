@@ -1,7 +1,14 @@
 import socket
 import threading
-from Client import SingleClient
 import pickle
+
+
+class SingleClient:
+    def __init__(self, id, client, name):
+        self.id = id
+        self.client = client
+        self.name = name
+        self.active = False
 
 
 class Server:
@@ -33,7 +40,7 @@ class Server:
 
         while self.active:
             client, address = self.__server.accept()
-            newClient = SingleClient.SingleClient(counter, client, "undefined")
+            newClient = SingleClient(counter, client, "undefined")
             self.clients.append(newClient)
             th = threading.Thread(target=self.clientListen, args=(client,))
             th.start()
