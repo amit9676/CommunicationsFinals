@@ -10,10 +10,7 @@ class ServerController:
         self.ServerThread.daemon = True
         self.ServerThread.start()
 
-
-
-        self.__GUI = ServerGUI.GUI(self)
-
+        self.__GUI = ServerGUI
 
     def activeTrue(self):
         self.__active = True
@@ -24,21 +21,18 @@ class ServerController:
         self.__active = False
 
     def createThread(self):
-        while self.__active == False:
+        while not self.__active:
             pass
         self.activate()
 
-
     def activate(self):
         while True:
-            if self.__active == True:
+            if self.__active:
                 self.__Server.active = True
                 self.__Server.initilize()
 
-
-
     def deActivate(self):
-        if(self.__Server.active == True):
+        if self.__Server.active:
             self.__Server.active = False
 
     def updateClients(self, data):

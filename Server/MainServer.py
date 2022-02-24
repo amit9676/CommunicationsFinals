@@ -53,23 +53,21 @@ class Server:
         list = []
         list.append("update")
         for c in self.clients:
-            if(c.active == True):
+            if (c.active == True):
                 list.append(c.name)
         for c in self.clients:
-            if(c.active == True):
+            if (c.active == True):
                 data_string = pickle.dumps(list)
                 c.client.send(data_string)
 
-
-    def private(self,packet):
+    def private(self, packet):
         addresee = packet[2]
         for c in self.clients:
-            if(addresee == c.name):
+            if (addresee == c.name):
                 data_string = pickle.dumps(packet)
                 c.client.send(data_string)
                 return True
         return False
-
 
     def broadcast(self, packet):
         data_string = pickle.dumps(packet)
@@ -100,7 +98,7 @@ class Server:
                 elif (packet[0] == "update"):
                     self.updateUsers()
                 elif (packet[0] == "private"):
-                    if(self.private(packet)):
+                    if (self.private(packet)):
                         data = pickle.dumps(packet)
                         client.send(data)
                     else:

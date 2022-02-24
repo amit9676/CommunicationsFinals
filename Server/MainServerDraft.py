@@ -1,18 +1,18 @@
 import socket
 import threading
 
+
 class Server:
     def __init__(self, controller):
         self.__controller = controller
         self.__host = "127.0.0.1"
         self.__port = 9090
         self.active = True
-        #check option if it fails
+        # check option if it fails
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.__server.bind((self.__host,self.__port))
+        self.__server.bind((self.__host, self.__port))
         self.__server.listen()
         self.clients = []
-
 
     def initilize(self):
         self.activate()
@@ -34,12 +34,7 @@ class Server:
         self.__server.close()
 
     def updateClients(self):
-
         self.__controller.updateClients(self.clients)
-
-
-
-
 
 # while True:
 #     print('Ready to serve...')
@@ -47,10 +42,6 @@ class Server:
 #     print("connection established")
 #
 # server.close()
-
-
-
-
 
 
 # clients = []

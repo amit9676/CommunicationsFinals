@@ -69,17 +69,17 @@ class Client:
 
         self.confirmedName = "Waiting"
         self.name = self.nameBox.get()
-        if(self.name == ""):
+        if self.name == "":
             self.chosenName.configure(text="please choose a name")
             return
         packet = ("validate",self.name)
         data_string = pickle.dumps(packet)
         self.sock.send(data_string)
-        while(self.confirmedName == "Waiting"):
+        while self.confirmedName == "Waiting":
             pass
         print(self.confirmedName)
         #self.chosenName.configure(text="chosen name already in use")
-        if(self.confirmedName == "True"):
+        if self.confirmedName == "True":
             self.root1.destroy()
         else:
             self.chosenName.configure(text="chosen name already in use")
@@ -92,7 +92,7 @@ class Client:
     def sendToServer(self, message, addresse):
         #server method
         packet = None
-        if(addresse == ""):
+        if addresse == "":
             packet = ("broadcast",self.name,message)
         else:
             packet = ("private",self.name,addresse,message)
@@ -153,7 +153,7 @@ class Client:
 
 
     def requestUpdate(self):
-        while self.GuiDone == False:
+        while not self.GuiDone:
             pass
         packet = ("update",)
         data_string = pickle.dumps(packet)
@@ -196,7 +196,7 @@ class Client:
                 if packet[0] == "broadcast" and self.GuiDone:
                     self.insertMessage(packet[1] + " (broadcast): " + packet[2])
                 elif packet[0] == "private" and self.GuiDone:
-                    if(self.name == packet[1]):
+                    if self.name == packet[1]:
                         self.insertMessage(packet[1] + " (to " + packet[2] +"): " + packet[3])
                     else:
                         self.insertMessage(packet[1] + " (to you): " + packet[3])
