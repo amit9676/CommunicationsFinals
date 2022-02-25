@@ -1,8 +1,7 @@
 import socket
 import threading
 import pickle
-
-from Client1.guiC import GUIClient
+import ClientGUI
 
 Host = "127.0.0.1"
 PORT = 9090
@@ -26,23 +25,25 @@ class Client:
         # self.recieveThread.daemon = True
 
         self.name = ""
+        self.files = [""]
 
-        self.gui_obj = GUIClient(self)
+        self.gui_obj = ClientGUI.GUIClient(self)
         # self.nameRequest()
         # self.write(self.name)
-
         self.GuiDone = False
         self.gui = None
-        print("connect")
-        self.GuiThread = threading.Thread(target=self.gui_obj.basicGUI())
+        self.GuiThread = threading.Thread(target=self.gui_obj.run())
         # self.GuiThread.daemon = True
 
-        self.updateThread = threading.Thread(target=self.requestUpdate)
+        self.updateThread = threading.Thread(target=self.requestInitialData)
         self.updateThread.daemon = True
-        #
-        # self.GuiThread.start()
 
         self.updateThread.start()
+        self.GuiThread.start()
+
+
+
+        print("connect")
 
     def send_packet(self, packet):
         try:
@@ -54,21 +55,27 @@ class Client:
 
     def sendToServer(self, message, addresse):
         # server method
-        packet = None
         if addresse == "":
             packet = ("broadcast", self.name, message)
         else:
             packet = ("private", self.name, addresse, message)
         self.send_packet(packet)
 
-    def requestUpdate(self):
+    def requestInitialData(self):
         while not self.GuiDone:
             pass
-        packet = ("update",)
-        self.send_packet(packet)
+        packet1 = ("update",)
+        packet2 = ("filesRequest",)
+        self.send_packet(packet1)
+        self.send_packet(packet2)
+
 
     # def guiCreate(self):
     #     self.gui = ClientGUI.GUI(self)
+
+    def download(self, currentFile):
+        packet = ("download", currentFile)
+        self.send_packet(packet)
 
     def stop(self):
         self.isActive = False
@@ -76,6 +83,14 @@ class Client:
         # self.root1.destroy()
         self.sock.close()
         exit(0)
+
+    def requestInitialData(self):
+        while not self.GuiDone:
+            pass
+        packet1 = ("update",)
+        packet2 = ("filesRequest",)
+        self.send_packet(packet1)
+        self.send_packet(packet2)
 
     def recieve(self):
         # main function to recieve data from server
@@ -95,17 +110,24 @@ class Client:
                         self.gui_obj.insertMessage(packet[1] + " (to you): " + packet[3])
                 elif packet[0] == "error" and self.GuiDone:
                     self.gui_obj.insertMessage("message could not be sent")
+                elif packet[0] == "filesRequest":
+                    self.files = packet[1]
+                    self.gui_obj.displayFiles()
+
+                    print(self.files)
                 elif packet[0] == "update":
                     self.gui_obj.insertUsers(packet)
                 elif packet[0] == "validate":
-                    if (packet[1] == True):
-                        self.confirmedName = "True"
+                    if packet[1] == True:
+                        self.gui_obj.confirmedName = "True"
                     else:
-                        self.confirmedName = "False"
+                        self.gui_obj.confirmedName = "False"
 
             except:
                 self.sock.close()
                 break
 
 
-c = Client()
+if __name__ == '__main__':
+    # Server = Server.ServerController.ServerController()
+    client = Client()
