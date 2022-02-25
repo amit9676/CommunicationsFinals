@@ -1,6 +1,7 @@
 import socket
 import threading
 import pickle
+import os
 
 
 class SingleClient:
@@ -107,8 +108,43 @@ class Server:
         requester.name = name
         return True
 
-    def download(self):
-        pass
+    def fetchFile(self, filename, udp,address):
+        #print(os.path.getsize("Files/"+filename+".txt"))
+        size = os.path.getsize("Files/"+filename+".txt")
+        packet = ("filebegin",filename,size)
+        data_string = pickle.dumps(packet)
+        udp.sendto(data_string,address)
+        try:
+            with open("Files/"+filename+".txt", "rb") as file:
+                c = 0
+                while c <= size:
+                    data = file.read(1024)
+                    if not data:
+                        print("!!")
+                        break
+                    #print(f"data: {data}")
+                    udp.sendto(data,address)
+                    c+= len(data)
+                    #print(c)
+            print("server completed transfering data")
+        except Exception as e:
+            print(str(e))
+
+    def download(self, client):
+        udp = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        port = 9091
+        host = "127.0.0.2"
+        udp.bind((host, port))
+        packet = ("udp", host,port)
+        data_string = pickle.dumps(packet)
+        client.send(data_string)
+
+        message, address = udp.recvfrom(1024)
+        openeddata = pickle.loads(message)
+        print(f"data = {openeddata}")
+        #udp.sendto(message,address)
+        self.fetchFile(openeddata[1],udp,address)
+        udp.close()
 
     def clientListen(self, client):
         currentClient = None
@@ -126,8 +162,8 @@ class Server:
                 elif (packet[0] == "update"):
                     self.updateUsers()
                 elif packet[0] == "download":
-                    print(packet[1])
-                    self.download()
+                    #self.fetchFile(packet[1])
+                    self.download(client)
                 elif (packet[0] == "filesRequest"):
                     packet = ("filesRequest", self.files)
                     files = pickle.dumps(packet)
@@ -158,7 +194,8 @@ class Server:
                 #     self.clients.remove(client)
                 # else:
                 #     self.broadcast(message)
-            except:
+            except Exception as e:
+                #print(str(e))
                 self.terminate_client(currentClient)
                 break
 

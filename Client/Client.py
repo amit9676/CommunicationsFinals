@@ -56,6 +56,7 @@ class Client:
         self.chosenName.place(x=10, y=55)
         nameEnter = Button(self.root1, text="Enter", height=1, width=12, command=self.proceed, fg="blue",
                            bg="pink").place(x=42, y=90)
+        self.root1.protocol("WM_DELETE_WINDOW", self.stop)
         self.root1.mainloop()
 
     def proceed(self):
@@ -205,6 +206,35 @@ class Client:
             print("connection lost with the server, closing the client...")
             self.stop()
 
+    def udp(self, host, port):
+        udp = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        packet = ("udp", self.currentFile)
+        data_string = pickle.dumps(packet)
+        udp.sendto(data_string,(host,port))
+        message, address = udp.recvfrom(1024)
+        openeddata = pickle.loads(message)
+        #print(f"data = {openeddata}")
+        self.recieveFile(openeddata[1], openeddata[2], udp,address)
+
+        udp.close()
+
+    def recieveFile(self, filename,size,udp,address):
+        try:
+            with open("TestDirectory/"+filename+".txt", "wb") as file:
+                c = 0
+                while c < int(size):
+                    data,address = udp.recvfrom(1024)
+                    if not data:
+                        break
+
+                    file.write(data)
+                    c+=len(data)
+                    #print(f"c: {c}, {size}")
+                #file.write("?".encode("utf=8"))
+            print("server completed transfering data")
+        except Exception as e:
+            print(str(e))
+
     def guiCreate(self):
         self.gui = ClientGUI.GUI(self)
 
@@ -236,10 +266,13 @@ class Client:
                 elif packet[0] == "filesRequest":
                     self.files = packet[1]
                     self.displayFiles()
-
-                    print(self.files)
                 elif packet[0] == "update":
                     self.insertUsers(packet)
+                elif packet[0] == "udp":
+                    tempThread = threading.Thread(target=self.udp,args=(packet[1],packet[2]))
+                    tempThread.daemon = True
+                    tempThread.start()
+                    #self.udp(packet[1], packet[2])
                 elif packet[0] == "validate":
                     if (packet[1] == True):
                         self.confirmedName = "True"
