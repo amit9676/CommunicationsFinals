@@ -2,6 +2,7 @@ import socket
 import threading
 import pickle
 import os
+import time
 
 
 class SingleClient:
@@ -108,43 +109,75 @@ class Server:
         requester.name = name
         return True
 
-    def fetchFile(self, filename, udp,address):
-        #print(os.path.getsize("Files/"+filename+".txt"))
+    def fetchFile(self, filename, client):
         size = os.path.getsize("Files/"+filename+".txt")
-        packet = ("filebegin",filename,size)
-        data_string = pickle.dumps(packet)
-        udp.sendto(data_string,address)
+        segments = {}
+        s=0
         try:
             with open("Files/"+filename+".txt", "rb") as file:
                 c = 0
                 while c <= size:
                     data = file.read(1024)
                     if not data:
-                        print("!!")
+                        #print("!!")
                         break
-                    #print(f"data: {data}")
-                    udp.sendto(data,address)
+                    segments[s] = data
+                    s+=1
                     c+= len(data)
-                    #print(c)
-            print("server completed transfering data")
+            self.fileSender(client,filename,size,s,segments)
         except Exception as e:
             print(str(e))
 
-    def download(self, client):
+    def fileSender(self, client, filename,size,numberOfSegments,segments):
+        #print(f"nof: {numberOfSegments}")
         udp = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
         port = 9091
         host = "127.0.0.2"
         udp.bind((host, port))
-        packet = ("udp", host,port)
+        packet = ("udp",filename,size,numberOfSegments, host,port)
         data_string = pickle.dumps(packet)
         client.send(data_string)
 
-        message, address = udp.recvfrom(1024)
+
+        message, address = udp.recvfrom(1024) #expect ("ready", time.time())
+        currentTime = time.time()
+        #future note - do something if initial upd establishment fails
+
         openeddata = pickle.loads(message)
-        print(f"data = {openeddata}")
-        #udp.sendto(message,address)
-        self.fetchFile(openeddata[1],udp,address)
+        rtt = (currentTime - openeddata[1]) * 3
+
+        while(len(segments) > 0):
+            for item in segments:
+                segment = (item,segments[item])
+                data_string = pickle.dumps(segment)
+                udp.sendto(data_string,address)
+            aidThread = threading.Thread(target=self.fileSenderAid, args=(udp,segments))
+            aidThread.daemon = True
+            aidThread.start()
+            currentTime = time.time()
+            while(time.time() - currentTime <= rtt):
+                time.sleep(rtt/10)
+
+            notack = ("notack",)
+            notack_data = pickle.dumps(notack)
+            udp.sendto(notack_data,(host,port))
+            #print(len(segments))
+
+
+
+        print("done")
         udp.close()
+
+    def fileSenderAid(self, udp,segments):
+        keyword = "ack"
+        while keyword == "ack":
+            message, address = udp.recvfrom(1024)
+            ack = pickle.loads(message)
+            #print(f"ack: {ack}")
+            if(ack[0] == "ack"):
+                del segments[ack[1]]
+            else:
+                break
 
     def clientListen(self, client):
         currentClient = None
@@ -162,8 +195,8 @@ class Server:
                 elif (packet[0] == "update"):
                     self.updateUsers()
                 elif packet[0] == "download":
-                    #self.fetchFile(packet[1])
-                    self.download(client)
+                    self.fetchFile(packet[1],client)
+                    #self.download(client)
                 elif (packet[0] == "filesRequest"):
                     packet = ("filesRequest", self.files)
                     files = pickle.dumps(packet)

@@ -3,6 +3,7 @@ import threading
 import ClientGUI
 from tkinter import *
 import pickle
+import time
 
 Host = "127.0.0.1"
 PORT = 9090
@@ -206,31 +207,51 @@ class Client:
             print("connection lost with the server, closing the client...")
             self.stop()
 
-    def udp(self, host, port):
+    def udp(self,filename,size,sizeOfSegments, host, port):
         udp = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        packet = ("udp", self.currentFile)
+        reqTime = time.time()
+        packet = ("ready", reqTime)
         data_string = pickle.dumps(packet)
         udp.sendto(data_string,(host,port))
-        message, address = udp.recvfrom(1024)
-        openeddata = pickle.loads(message)
+
+
+        #message, address = udp.recvfrom(1024)
+        #openeddata = pickle.loads(message)
         #print(f"data = {openeddata}")
-        self.recieveFile(openeddata[1], openeddata[2], udp,address)
+        segments = {}
+        #recieverThread = threading.Thread(target=self.recieveFile, args=(filename, size, udp,sizeOfSegments,host,port,segments))
+        #recieverThread.daemon = True
+        #recieverThread.start()
+        self.recieveFile(filename, size, udp,sizeOfSegments,host,port,segments)
 
+        #udp.close()
+
+
+    def recieveFile(self, filename,size,udp,sizeOfSegments,host,port,segments):
+        #print(filename)
+        #print(size)
+        #print(sizeOfSegments)
+        #print(segments)
+        while len(segments) < sizeOfSegments:
+            #print(1)
+            message, address = udp.recvfrom(1124)
+            #print(2)
+            segment = pickle.loads(message)
+            segments[segment[0]] = segment[1]
+            response = ("ack",segment[0])
+            data_string = pickle.dumps(response)
+            udp.sendto(data_string,(host,port))
+            #print(f"sent {response}")
+        #print("done")
+        #print(segments)
         udp.close()
+        self.create(filename,segments)
 
-    def recieveFile(self, filename,size,udp,address):
+    def create(self, filename,segments):
         try:
             with open("TestDirectory/"+filename+".txt", "wb") as file:
-                c = 0
-                while c < int(size):
-                    data,address = udp.recvfrom(1024)
-                    if not data:
-                        break
-
-                    file.write(data)
-                    c+=len(data)
-                    #print(f"c: {c}, {size}")
-                #file.write("?".encode("utf=8"))
+                for i in range (0,len(segments)):
+                    file.write(segments[i])
             print("server completed transfering data")
         except Exception as e:
             print(str(e))
@@ -269,7 +290,7 @@ class Client:
                 elif packet[0] == "update":
                     self.insertUsers(packet)
                 elif packet[0] == "udp":
-                    tempThread = threading.Thread(target=self.udp,args=(packet[1],packet[2]))
+                    tempThread = threading.Thread(target=self.udp,args=(packet[1],packet[2],packet[3],packet[4],packet[5]))
                     tempThread.daemon = True
                     tempThread.start()
                     #self.udp(packet[1], packet[2])
