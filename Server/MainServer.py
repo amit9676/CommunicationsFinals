@@ -42,11 +42,14 @@ class Server:
         counter = 1
 
         while self.active:
-            client, address = self.__server.accept()
-            newClient = SingleClient(counter, client, "undefined")
-            self.clients.append(newClient)
-            th = threading.Thread(target=self.clientListen, args=(client,))
-            th.start()
+            try:
+                client, address = self.__server.accept()
+                newClient = SingleClient(counter, client, "undefined")
+                self.clients.append(newClient)
+                th = threading.Thread(target=self.clientListen, args=(client,))
+                th.start()
+            except:
+                print("Server Disconnected")
 
             # client.send("name".encode("utf-8"))
             # name = client.recv(1024)
@@ -193,12 +196,14 @@ class Server:
                 if (packet[0] == "broadcast"):
                     self.broadcast(packet)
                 elif (packet[0] == "update"):
+                    print("here....")
                     self.updateUsers()
                 elif packet[0] == "download":
                     self.fetchFile(packet[1],client)
                     #self.download(client)
                 elif (packet[0] == "filesRequest"):
                     packet = ("filesRequest", self.files)
+                    print("here..")
                     files = pickle.dumps(packet)
                     client.send(files)
                 elif (packet[0] == "private"):

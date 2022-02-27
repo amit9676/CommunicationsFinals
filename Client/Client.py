@@ -165,10 +165,12 @@ class Client:
             pass
         packet1 = ("update",)
         packet2 = ("filesRequest",)
+
         data_string1 = pickle.dumps(packet1)
         data_string2 = pickle.dumps(packet2)
         try:
             self.sock.send(data_string1)
+            time.sleep(0.001)
             self.sock.send(data_string2)
         except:
             print("connection lost with the server, closing the client...")
@@ -188,6 +190,7 @@ class Client:
         self.t1.configure(state="disabled", cursor="arrow")
 
     def displayFiles(self):
+        print("here")
         self.w['menu'].delete(0,'end')
         for opt in self.files:
             self.w['menu'].add_command(label=opt, command=lambda x=opt: self.setFilesAid(x))
@@ -285,6 +288,7 @@ class Client:
                 elif packet[0] == "error" and self.GuiDone:
                     self.insertMessage("message could not be sent")
                 elif packet[0] == "filesRequest":
+                    print("!!")
                     self.files = packet[1]
                     self.displayFiles()
                 elif packet[0] == "update":
