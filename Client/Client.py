@@ -145,8 +145,13 @@ class Client:
         self.variable.set("loading") # default value
         self.w = OptionMenu(self.root2,  self.variable, ())
         self.w.place(x=115,y=455)
-        self.download = Button(self.root2, text="Download", height=1, width=13, command=self.download, fg="blue",
-                          bg="pink").place(x=203, y=457, height=25)
+        self.downloadButton = Button(self.root2, text="Download", height=1, width=13, command=self.download, fg="blue",
+                          bg="pink")
+        self.downloadButton.place(x=203, y=457, height=25)
+
+        self.downloadingInfo = StringVar()
+        self.downloadingInfo.set("")
+        self.downloadingLabel = Label(self.root2, textvariable= self.downloadingInfo, font=("lucida", 11)).place(x=3, y=490)
 
         self.root2.protocol("WM_DELETE_WINDOW", self.stop)
         self.GuiDone = True
@@ -189,6 +194,10 @@ class Client:
             self.t1.insert(INSERT, str(packet[p]) + "\n")  # --add text here--
         self.t1.configure(state="disabled", cursor="arrow")
 
+    def insertFileTransferData(self,info):
+        self.downloadingInfo.set(info)
+
+
     def displayFiles(self):
         print("here")
         self.w['menu'].delete(0,'end')
@@ -204,6 +213,7 @@ class Client:
     def download(self):
         packet = ("download",self.currentFile)
         data_string = pickle.dumps(packet)
+        self.downloadButton["state"] = "disabled"
         try:
             self.sock.send(data_string)
         except:
@@ -235,9 +245,15 @@ class Client:
         #print(size)
         #print(sizeOfSegments)
         #print(segments)
+        #self.insertFileTransferData("downloading")
+        #time.sleep(10)
+        counter = 0
         while len(segments) < sizeOfSegments:
             #print(1)
             message, address = udp.recvfrom(1124)
+            counter+=1
+            status = "downloading " + str(counter*1024) + "/" + str(size) + " bytes"
+            self.insertFileTransferData(status)
             #print(2)
             segment = pickle.loads(message)
             segments[segment[0]] = segment[1]
@@ -248,6 +264,7 @@ class Client:
         #print("done")
         #print(segments)
         udp.close()
+        self.insertFileTransferData("file downloaded")
         self.create(filename,segments)
 
     def create(self, filename,segments):
@@ -256,6 +273,7 @@ class Client:
                 for i in range (0,len(segments)):
                     file.write(segments[i])
             print("server completed transfering data")
+            self.downloadButton["state"] = "normal"
         except Exception as e:
             print(str(e))
 

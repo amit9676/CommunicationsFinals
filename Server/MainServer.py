@@ -150,10 +150,12 @@ class Server:
         rtt = (currentTime - openeddata[1]) * 3
 
         while(len(segments) > 0):
+            print(len(segments))
             for item in segments:
                 segment = (item,segments[item])
                 data_string = pickle.dumps(segment)
                 udp.sendto(data_string,address)
+                time.sleep(0.001)
             aidThread = threading.Thread(target=self.fileSenderAid, args=(udp,segments))
             aidThread.daemon = True
             aidThread.start()
@@ -165,6 +167,7 @@ class Server:
             notack_data = pickle.dumps(notack)
             udp.sendto(notack_data,(host,port))
             #print(len(segments))
+            time.sleep(0.001)
 
 
 
@@ -174,12 +177,15 @@ class Server:
     def fileSenderAid(self, udp,segments):
         keyword = "ack"
         while keyword == "ack":
-            message, address = udp.recvfrom(1024)
+            try:
+                message, address = udp.recvfrom(1024)
+            except:
+                return
             ack = pickle.loads(message)
-            #print(f"ack: {ack}")
             if(ack[0] == "ack"):
                 del segments[ack[1]]
             else:
+                keyword = "notack"
                 break
 
     def clientListen(self, client):
