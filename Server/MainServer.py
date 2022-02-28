@@ -3,6 +3,7 @@ import threading
 import pickle
 import os
 import time
+from tkinter import *
 
 
 class SingleClient:
@@ -26,15 +27,40 @@ class Server:
         self.threads = []
         self.files = ["one", "two", "three"]
 
+        self.GuiThread = threading.Thread(target=self.basicGUI)
+        self.GuiThread.daemon = True
+        self.GuiThread.start()
+
         self.activate()
 
     def initilize(self):
         self.activate()
 
+    def basicGUI(self):
+        self.__root = Tk()
+        self.__widthSize = 500
+        self.__HeightSize = 200
+        self.__root.geometry(str(self.__widthSize) + "x" + str(self.__HeightSize))
+        self.__root.resizable(False, False)
+        self.__t = Text(self.__root, width=60, height=11)
+        #self.__t.insert(INSERT, "amit")  # --add text here--
+        self.__t.configure(state="disabled", cursor="arrow")
+        self.__t.place(x=5, y=5)
+        self.__root.protocol("WM_DELETE_WINDOW", self.endServer)
+        self.__root.mainloop()
+
+    def insertUpdates(self, message):
+        self.__t.configure(state="normal", cursor="arrow")
+        self.__t.insert(INSERT, str(message) + "\n")  # --add text here--
+        self.__t.configure(state="disabled", cursor="arrow")
+
     def terminate_client(self, client):
-        print("terminate client of: ", client.name)
+        #print("terminate client of: ", client.name)
+        notfication = str(client.name) + " left the chat"
+        self.insertUpdates(notfication)
         self.clients.remove(client)
         client.client.close()
+
         self.updateUsers()
 
     def activate(self):
@@ -47,26 +73,25 @@ class Server:
                 newClient = SingleClient(counter, client, "undefined")
                 self.clients.append(newClient)
                 th = threading.Thread(target=self.clientListen, args=(client,))
+                th.daemon = True
                 th.start()
             except:
                 print("Server Disconnected")
 
-            # client.send("name".encode("utf-8"))
-            # name = client.recv(1024)
-            # newClient = SingleClient.SingleClient(counter,client,name.decode('utf-8'))
-            # self.clients.append(newClient)
-
-            # print(f"connection established with {newClient.name}")
-            # counter+=1
-            # print(str(len(self.clients)))
-
-            # print("thread count" + str(threading.active_count()))
-
         print("connection closed")
-        self.endServer()
+        #self.endServer()
 
     def endServer(self):
+        serverDown = ("serverDown",)
+        data_string = pickle.dumps(serverDown)
+        for c in self.clients:
+            print("hi")
+            c.client.send(data_string)
+            #self.terminate_client(c)
+        print(threading.active_count())
+        self.active = False
         self.__server.close()
+        exit(0)
 
     def updateUsers(self):
         list = []
@@ -195,7 +220,7 @@ class Server:
                 currentClient = c
                 break
 
-        while True:
+        while self.active:
             try:
                 data = client.recv(4096)
                 packet = pickle.loads(data)
@@ -224,20 +249,13 @@ class Server:
                     answer = None
                     if self.validate(packet[1], currentClient) == True:
                         answer = ("validate", True)
+                        joiner = str(currentClient.name) + " has joined the chat"
+                        self.insertUpdates(joiner)
 
                     else:
                         answer = ("validate", False)
                     data = pickle.dumps(answer)
                     client.send(data)
-                # print(this)
-                # print(":):)!")
-                # message = currentClient.name + ": " + client.recv(1024).decode('utf-8')
-                # self.broadcast(message)
-                # if message == "out":
-                #     print("clie")
-                #     self.clients.remove(client)
-                # else:
-                #     self.broadcast(message)
             except Exception as e:
                 #print(str(e))
                 self.terminate_client(currentClient)

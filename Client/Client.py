@@ -29,8 +29,11 @@ class Client:
         self.name = ""
         self.files = [""]
         self.currentFile = ""
+        self.initGui = True
         self.nameRequest()
+        self.initGui = False
         self.write(self.name)
+
 
         self.GuiDone = False
         self.gui = None
@@ -47,6 +50,7 @@ class Client:
 
     def nameRequest(self):
         self.root1 = Tk()
+        self.initGui = True
         self.root1.title("Enter name")
         self.root1.geometry("180x120")
         self.root1.resizable(False, False)
@@ -55,8 +59,9 @@ class Client:
         self.nameBox.place(x=10, y=35)
         self.chosenName = Label(self.root1, text="")
         self.chosenName.place(x=10, y=55)
-        nameEnter = Button(self.root1, text="Enter", height=1, width=12, command=self.proceed, fg="blue",
-                           bg="pink").place(x=42, y=90)
+        self.nameEnter = Button(self.root1, text="Enter", height=1, width=12, command=self.proceed, fg="blue",
+                           bg="pink")
+        self.nameEnter.place(x=42, y=90)
         self.root1.protocol("WM_DELETE_WINDOW", self.stop)
         self.root1.mainloop()
 
@@ -136,7 +141,8 @@ class Client:
         # w.place(x=225,y=300)
 
         self.snd = Button(self.root2, text="Send", height=1, width=11, command=self.sendMessageOut, fg="blue",
-                          bg="pink").place(x=563, y=407, height=25)
+                          bg="pink")
+        self.snd.place(x=563, y=407, height=25)
 
         sendTo = Label(self.root2, text='download file:', font=("lucida", 11)).place(x=3, y=460)
 
@@ -280,6 +286,19 @@ class Client:
     def guiCreate(self):
         self.gui = ClientGUI.GUI(self)
 
+    def disable(self):
+        if self.initGui:
+            self.chosenName.configure(text="server is down")
+            self.nameEnter["state"] = "disabled"
+        elif self.GuiDone:
+            print("mm")
+            self.insertMessage("server is down")
+            self.snd["state"] = "disabled"
+            self.downloadButton["state"] = "disabled"
+
+
+
+
     def stop(self):
         self.isActive = False
         # self.root2.destroy()
@@ -321,6 +340,10 @@ class Client:
                         self.confirmedName = "True"
                     else:
                         self.confirmedName = "False"
+                elif packet[0] == "serverDown":
+                    self.disable()
+                    self.insertUsers(packet)
+
 
             except:
                 self.sock.close()
