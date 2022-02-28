@@ -325,7 +325,6 @@ class Client:
                 elif packet[0] == "error" and self.GuiDone:
                     self.insertMessage("message could not be sent")
                 elif packet[0] == "filesRequest":
-                    print("!!")
                     self.files = packet[1]
                     self.displayFiles()
                 elif packet[0] == "update":

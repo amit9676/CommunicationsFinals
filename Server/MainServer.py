@@ -230,11 +230,15 @@ class Server:
                     print("here....")
                     self.updateUsers()
                 elif packet[0] == "download":
-                    self.fetchFile(packet[1],client)
+                    fileSenderThread = threading.Thread(target=self.fetchFile, args=(packet[1],client))
+                    fileSenderThread.daemon = True
+                    fileSenderThread.start()
+                    #self.fetchFile(packet[1],client)
+
+                    self.insertUpdates(str(currentClient.name) + " downloading " + str(packet[1]))
                     #self.download(client)
                 elif (packet[0] == "filesRequest"):
                     packet = ("filesRequest", self.files)
-                    print("here..")
                     files = pickle.dumps(packet)
                     client.send(files)
                 elif (packet[0] == "private"):
