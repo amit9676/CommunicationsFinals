@@ -33,6 +33,7 @@ class Client:
         self.nameRequest()
         self.initGui = False
         self.write(self.name)
+        self.stupidCondition = 1
 
 
         self.GuiDone = False
@@ -164,6 +165,24 @@ class Client:
         self.root2.mainloop()
         # gui method
 
+    def halfway(self):
+        self.paused = Label(self.root2, text='downloading paused..', font=("lucida", 11))
+        self.paused.place(x=253, y=490)
+        self.bb = Button(self.root2, text="proceed", command=lambda: self.halfway2(2), height=1, width=13, fg="blue",
+                         bg="pink")
+        self.bb.place(x=413, y=488, height=25)
+        self.cc = Button(self.root2, text="cancel", command=lambda: self.halfway2(3), height=1, width=13, fg="blue",
+                         bg="pink")
+        self.cc.place(x=533, y=488, height=25)
+
+    def halfway2(self, condition):
+        self.stupidCondition = condition
+        self.paused.destroy()
+        self.bb.destroy()
+        self.cc.destroy()
+        if self.stupidCondition == 3:
+            self.downloadButton["state"] = "normal"
+
     def sendMessageOut(self):
         message = self.eMsg.get()
         addressee = self.sendToEntry.get()
@@ -247,6 +266,7 @@ class Client:
 
 
     def recieveFile(self, filename,size,udp,sizeOfSegments,host,port,segments):
+        print(f"active threads: {threading.active_count()}")
         #print(filename)
         #print(size)
         #print(sizeOfSegments)
@@ -254,8 +274,10 @@ class Client:
         #self.insertFileTransferData("downloading")
         #time.sleep(10)
         counter = 0
+        # sendAcks = threading.Thread(target=self.ackSender, args=(udp))
+        # sendAcks.daemon = True
+        # sendAcks.start()
         while len(segments) < sizeOfSegments:
-            #print(1)
             message, address = udp.recvfrom(1124)
             counter+=1
             status = "downloading " + str(counter*1024) + "/" + str(size) + " bytes"
@@ -263,15 +285,43 @@ class Client:
             #print(2)
             segment = pickle.loads(message)
             segments[segment[0]] = segment[1]
-            response = ("ack",segment[0])
+            response = ("ack", segment[0])
+            print(response)
             data_string = pickle.dumps(response)
-            udp.sendto(data_string,(host,port))
+            udp.sendto(data_string, (host, port))
+            # if(segment[0] == "halfway"):
+            #     print("halfway")
+            #     self.halfway()
+            #     while self.stupidCondition == 1:
+            #         pass
+            #     if(self.stupidCondition == 2):
+            #         halfWayAnswer = ("halfway","proceed")
+            #         halfWayData = pickle.dumps(halfWayAnswer)
+            #         udp.sendto(halfWayData,(host,port))
+            #         self.stupidCondition = 1
+            #     if(self.stupidCondition == 3):
+            #         halfWayAnswer = ("halfway", "cancel")
+            #         halfWayData = pickle.dumps(halfWayAnswer)
+            #         udp.sendto(halfWayData,(host,port))
+            #         udp.close()
+            #         self.insertFileTransferData("download canceled")
+            #         self.stupidCondition = 1
+            #         return
+            # else:
+            #     segments[segment[0]] = segment[1]
+            #     response = ("ack",segment[0])
+            #     print(response)
+            #     data_string = pickle.dumps(response)
+            #     udp.sendto(data_string,(host,port))
             #print(f"sent {response}")
         #print("done")
         #print(segments)
         udp.close()
         self.insertFileTransferData("file downloaded")
         self.create(filename,segments)
+
+    #def ackSender(self,udp):
+        #pass
 
     def create(self, filename,segments):
         try:
