@@ -279,40 +279,36 @@ class Client:
         # sendAcks.start()
         while len(segments) < sizeOfSegments:
             message, address = udp.recvfrom(1124)
-            counter+=1
             status = "downloading " + str(counter*1024) + "/" + str(size) + " bytes"
             self.insertFileTransferData(status)
+            counter += 1
             #print(2)
             segment = pickle.loads(message)
-            segments[segment[0]] = segment[1]
-            response = ("ack", segment[0])
-            print(response)
-            data_string = pickle.dumps(response)
-            udp.sendto(data_string, (host, port))
-            # if(segment[0] == "halfway"):
-            #     print("halfway")
-            #     self.halfway()
-            #     while self.stupidCondition == 1:
-            #         pass
-            #     if(self.stupidCondition == 2):
-            #         halfWayAnswer = ("halfway","proceed")
-            #         halfWayData = pickle.dumps(halfWayAnswer)
-            #         udp.sendto(halfWayData,(host,port))
-            #         self.stupidCondition = 1
-            #     if(self.stupidCondition == 3):
-            #         halfWayAnswer = ("halfway", "cancel")
-            #         halfWayData = pickle.dumps(halfWayAnswer)
-            #         udp.sendto(halfWayData,(host,port))
-            #         udp.close()
-            #         self.insertFileTransferData("download canceled")
-            #         self.stupidCondition = 1
-            #         return
-            # else:
-            #     segments[segment[0]] = segment[1]
-            #     response = ("ack",segment[0])
-            #     print(response)
-            #     data_string = pickle.dumps(response)
-            #     udp.sendto(data_string,(host,port))
+            if(segment[0] == "halfway"):
+                print("halfway")
+                self.halfway()
+                while self.stupidCondition == 1:
+                    pass
+                if(self.stupidCondition == 2):
+                    halfWayAnswer = ("halfway","proceed")
+                    halfWayData = pickle.dumps(halfWayAnswer)
+                    udp.sendto(halfWayData,(host,port))
+                    self.stupidCondition = 1
+                if(self.stupidCondition == 3):
+                    halfWayAnswer = ("halfway", "cancel")
+                    halfWayData = pickle.dumps(halfWayAnswer)
+                    udp.sendto(halfWayData,(host,port))
+                    udp.close()
+                    self.insertFileTransferData("download canceled")
+                    self.stupidCondition = 1
+                    return
+            else:
+                segments[segment[0]] = segment[1]
+                response = ("ack",segment[0])
+                data_string = pickle.dumps(response)
+                udp.sendto(data_string,(host,port))
+
+            time.sleep(0.001)
             #print(f"sent {response}")
         #print("done")
         #print(segments)

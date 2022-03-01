@@ -26,7 +26,7 @@ class Server:
         self.__server.listen(15)
         self.clients = []
         self.threads = []
-        self.files = ["one", "two", "three"]
+        self.files = ["one", "two", "three", "four","five"]
 
         self.GuiThread = threading.Thread(target=self.basicGUI)
         self.GuiThread.daemon = True
@@ -138,7 +138,7 @@ class Server:
         requester.name = name
         return True
 
-    def fetchFile(self, filename, client):
+    def fetchFile(self, filename, client, requester):
         size = os.path.getsize("Files/" + filename + ".txt")
         segments = {}
         s = 0
@@ -153,7 +153,7 @@ class Server:
                     segments[s] = data
                     s += 1
                     c += len(data)
-            self.fileSender(client, filename, size, s, segments)
+            self.fileSender(client, filename, size, s, segments, requester)
         except Exception as e:
             print(str(e))
 
@@ -170,7 +170,7 @@ class Server:
         self.ports[t] = False
         return t
 
-    def fileSender(self, client, filename, size, numberOfSegments, segments):
+    def fileSender(self, client, filename, size, numberOfSegments, segments,requester):
         # print(f"nof: {numberOfSegments}")
         udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         threadLock = threading.Lock()
@@ -197,12 +197,11 @@ class Server:
         # ackCounter = [0, False]
         # maxWindow = 32
         # therehold = 16
-        ackThread = threading.Thread(target=self.ackReciever, args=(parameters, currentTime, rtt, udp, segments, proceedOrCnacel))
+        ackThread = threading.Thread(target=self.ackReciever, args=(parameters, currentTime, rtt, udp, segments, proceedOrCnacel,requester,filename))
         ackThread.daemon = True
         ackThread.start()
         k = 0
         while (len(segments) > 0):
-            print(f"k: {k}")
 
 
             parameters[1] = 0
@@ -211,18 +210,16 @@ class Server:
             for key in segments.keys():
                 allKyes.append(key)
             for i in range(0, parameters[0]):
-                # if (k == numberOfSegments // 2):
-                #     print(f"k: {k}, nos: {numberOfSegments}")
-                #     segment2 = ("halfway",)
-                #     print(f"segment2: {segment2}")
-                #     data_string2 = pickle.dumps(segment2)
-                #     udp.sendto(data_string2, address)
-                #     while proceedOrCnacel[0] == 1:
-                #         pass
-                #     if (proceedOrCnacel[0] == 3):
-                #         self.endFileClosing(udp, host, port)
-                #         return
-                # k += 1
+                if (k == numberOfSegments // 2):
+                    segment2 = ("halfway",)
+                    data_string2 = pickle.dumps(segment2)
+                    udp.sendto(data_string2, address)
+                    while proceedOrCnacel[0] == 1:
+                        pass
+                    if (proceedOrCnacel[0] == 3):
+                        self.endFileClosing(udp, host, port)
+                        return
+                k += 1
                 if (i >= len(segments)):
                     break
                 segment = (allKyes[i], segments[allKyes[i]])
@@ -285,9 +282,10 @@ class Server:
         # print("done")
         # udp.close()
         # self.ports[port] = True
+        self.insertUpdates(str(requester) + " completed download of " + str(filename))
         self.endFileClosing(udp,host,port)
 
-    def ackReciever(self, parameters, currentTime, rtt, udp, segments,proceedOrCnacel):
+    def ackReciever(self, parameters, currentTime, rtt, udp, segments,proceedOrCnacel,requester,filename):
         # while (parameters[1] < parameters[0] and time.time() - currentTime < (rtt * parameters[0])):
         while True:
             try:
@@ -295,17 +293,20 @@ class Server:
             except:
                 return
             ack = pickle.loads(message)
-            print(ack)
             if (ack[0] == "ack"):
-                del segments[ack[1]]
-                parameters[1] += 1
+                try:
+                    del segments[ack[1]]
+                    parameters[1] += 1
+                except:
+                    continue
                 # if (parameters[1] == parameters[0]):
                 #     print("flow")
-            # elif (ack[0] == "halfway"):
-            #     if ack[1] == "proceed":
-            #         proceedOrCnacel[0] = 2
-            #     else:
-            #         proceedOrCnacel[0] = 3
+            elif (ack[0] == "halfway"):
+                if ack[1] == "proceed":
+                    proceedOrCnacel[0] = 2
+                else:
+                    proceedOrCnacel[0] = 3
+                    self.insertUpdates(str(requester) + " canceled download of " + str(filename))
             else:
                 break
         print("reciever Done")
@@ -335,7 +336,7 @@ class Server:
                 elif (packet[0] == "update"):
                     self.updateUsers()
                 elif packet[0] == "download":
-                    fileSenderThread = threading.Thread(target=self.fetchFile, args=(packet[1], client))
+                    fileSenderThread = threading.Thread(target=self.fetchFile, args=(packet[1], client,currentClient.name))
                     fileSenderThread.daemon = True
                     fileSenderThread.start()
                     # self.fetchFile(packet[1],client)
