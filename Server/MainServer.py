@@ -16,6 +16,7 @@ class SingleClient:
 
 class Server:
     def __init__(self):
+        self.ports = {9091: True}
         self.__host = "127.0.0.1"
         self.__port = 9090
         self.active = True
@@ -43,7 +44,7 @@ class Server:
         self.__root.geometry(str(self.__widthSize) + "x" + str(self.__HeightSize))
         self.__root.resizable(False, False)
         self.__t = Text(self.__root, width=60, height=11)
-        #self.__t.insert(INSERT, "amit")  # --add text here--
+        self.__t.insert(INSERT, "Server is running")  # --add text here--
         self.__t.configure(state="disabled", cursor="arrow")
         self.__t.place(x=5, y=5)
         self.__root.protocol("WM_DELETE_WINDOW", self.endServer)
@@ -156,10 +157,27 @@ class Server:
         except Exception as e:
             print(str(e))
 
+    def portAssigner(self):
+        t=0
+        for p in self.ports.keys():
+            if(self.ports[p]):
+                self.ports[p] = False
+                return p
+            else:
+                t=p
+
+        t+=1
+        self.ports[t] = False
+        return t
+
+
     def fileSender(self, client, filename,size,numberOfSegments,segments):
         #print(f"nof: {numberOfSegments}")
         udp = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        port = 9091
+        threadLock = threading.Lock()
+        threadLock.acquire()
+        port = self.portAssigner()
+        threadLock.release()
         host = "127.0.0.2"
         udp.bind((host, port))
         packet = ("udp",filename,size,numberOfSegments, host,port)
@@ -181,7 +199,7 @@ class Server:
                 data_string = pickle.dumps(segment)
                 udp.sendto(data_string,address)
                 time.sleep(0.001)
-            aidThread = threading.Thread(target=self.fileSenderAid, args=(udp,segments))
+            aidThread = threading.Thread(target=self.fileSenderAid, args=(udp,segments,numberOfSegments))
             aidThread.daemon = True
             aidThread.start()
             currentTime = time.time()
@@ -198,8 +216,9 @@ class Server:
 
         print("done")
         udp.close()
+        self.ports[port] = True
 
-    def fileSenderAid(self, udp,segments):
+    def fileSenderAid(self, udp,segments,numberOfSegments):
         keyword = "ack"
         while keyword == "ack":
             try:
@@ -227,7 +246,6 @@ class Server:
                 if (packet[0] == "broadcast"):
                     self.broadcast(packet)
                 elif (packet[0] == "update"):
-                    print("here....")
                     self.updateUsers()
                 elif packet[0] == "download":
                     fileSenderThread = threading.Thread(target=self.fetchFile, args=(packet[1],client))
