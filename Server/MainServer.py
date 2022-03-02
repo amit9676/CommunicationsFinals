@@ -331,6 +331,7 @@ class Server:
             try:
                 data = client.recv(4096)
                 packet = pickle.loads(data)
+                # print(packet)
                 if (packet[0] == "broadcast"):
                     self.broadcast(packet)
                 elif (packet[0] == "update"):
@@ -367,7 +368,7 @@ class Server:
                     data = pickle.dumps(answer)
                     client.send(data)
             except Exception as e:
-                # print(str(e))
+                print(str(e))
                 self.terminate_client(currentClient)
                 break
 

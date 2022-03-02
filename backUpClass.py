@@ -20,7 +20,7 @@
 #
 # def secondWindow():
 #     root2 = Tk()
-#     root2.title("Client")
+#     root2.title("Client2")
 #     root2.geometry("855x500")
 #     root2.resizable(False, False)
 #     LoginButton = Button(root2,text="Login", height=1,width=8, command=myClick,fg="blue", bg="pink").grid(padx=5, pady=5, column=0,row=0)
@@ -44,7 +44,7 @@
 #     snd = Button(root2,text="Send", height=1,width=11, command=myClick,fg="blue", bg="pink").place(x=746,y=345,height=25)
 #
 #     SFN = Label(root2, text="Server File Name").place(x=5,y=390)
-#     CFN = Label(root2, text="Client File Name (save as...)").place(x=265,y=390)
+#     CFN = Label(root2, text="Client2 File Name (save as...)").place(x=265,y=390)
 #     eSFN = Entry(root2, width=40, borderwidth=1).place(x=5,y=410,height=25)
 #     eCFN = Entry(root2, width=77, borderwidth=1).place(x=268,y=410,height=25)
 #     prcd = Button(root2,text="Proceed", height=1,width=11, command=myClick,fg="blue", bg="pink").place(x=746,y=410,height=25)

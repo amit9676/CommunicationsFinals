@@ -1,6 +1,5 @@
 import socket
 import threading
-import ClientGUI
 from tkinter import *
 import pickle
 import time
@@ -336,7 +335,7 @@ class Client:
             print(str(e))
 
     def guiCreate(self):
-        self.gui = ClientGUI.GUI(self)
+        self.gui = ClientGUI.gui(self)
 
     def disable(self):
         if self.initGui:
