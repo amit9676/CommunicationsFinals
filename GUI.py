@@ -35,7 +35,7 @@ class GUI:
             self.chosenName.configure(text="please choose a name")
             return
         packet = ("validate", self.client.name)
-        self.client.send_packet(packet)
+        self.client.send_packet_tcp(packet)
         while self.client.confirmedName == "Waiting":
             pass
         # self.chosenName.configure(text="chosen name already in use")
@@ -147,3 +147,11 @@ class GUI:
         self.cc.destroy()
         if self.client.stupidCondition == 3:
             self.downloadButton["state"] = "normal"
+
+    def displayFiles(self):
+        print("here")
+        self.w['menu'].delete(0, 'end')
+        for opt in self.client.files:
+            self.w['menu'].add_command(label=opt, command=lambda x=opt: self.client.setFilesAid(x))
+        self.variable.set(self.client.files[0])
+        self.client.currentFile = self.client.files[0]
