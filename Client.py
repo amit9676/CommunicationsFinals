@@ -110,8 +110,6 @@ class Client:
         self.gui.downloadButton["state"] = "disabled"
         self.send_packet_tcp(packet)
 
-    """ ---------------------------------------- files algo ------------------------------------------------------"""
-
     def udp(self, filename, size, sizeOfSegments, host, port):
         udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         reqTime = time.time()
@@ -199,8 +197,6 @@ class Client:
             self.gui.downloadButton["state"] = "normal"
         except Exception as e:
             print(str(e))
-
-    """ ------------------------------------ files algo end -----------------------------------------------------"""
 
     def stop(self):
         self.isActive = False

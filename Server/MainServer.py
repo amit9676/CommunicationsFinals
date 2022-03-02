@@ -5,6 +5,8 @@ import os
 import time
 from tkinter import *
 
+from Server.ServerGUI import ServerGUI
+
 
 class SingleClient:
     def __init__(self, id, client, name):
@@ -28,7 +30,8 @@ class Server:
         self.threads = []
         self.files = ["one", "two", "three"]
 
-        self.GuiThread = threading.Thread(target=self.basicGUI)
+        self.gui = ServerGUI(self)
+        self.GuiThread = threading.Thread(target=self.gui.basicGUI)
         self.GuiThread.daemon = True
         self.GuiThread.start()
 
@@ -37,28 +40,10 @@ class Server:
     def initilize(self):
         self.activate()
 
-    def basicGUI(self):
-        self.__root = Tk()
-        self.__widthSize = 500
-        self.__HeightSize = 200
-        self.__root.geometry(str(self.__widthSize) + "x" + str(self.__HeightSize))
-        self.__root.resizable(False, False)
-        self.__t = Text(self.__root, width=60, height=11)
-        self.__t.insert(INSERT, "Server is running\n")  # --add text here--
-        self.__t.configure(state="disabled", cursor="arrow")
-        self.__t.place(x=5, y=5)
-        self.__root.protocol("WM_DELETE_WINDOW", self.endServer)
-        self.__root.mainloop()
-
-    def insertUpdates(self, message):
-        self.__t.configure(state="normal", cursor="arrow")
-        self.__t.insert(INSERT, str(message) + "\n")  # --add text here--
-        self.__t.configure(state="disabled", cursor="arrow")
-
     def terminate_client(self, client):
         # print("terminate client of: ", client.name)
         notfication = str(client.name) + " left the chat"
-        self.insertUpdates(notfication)
+        self.gui.insertUpdates(notfication)
         self.clients.remove(client)
         client.client.close()
 
@@ -86,7 +71,7 @@ class Server:
         serverDown = ("serverDown",)
         data_string = pickle.dumps(serverDown)
         for c in self.clients:
-            print("hi")
+            # print("hi")
             c.client.send(data_string)
             # self.terminate_client(c)
         # print(threading.active_count())
@@ -282,7 +267,7 @@ class Server:
         # print("done")
         # udp.close()
         # self.ports[port] = True
-        self.insertUpdates(str(requester) + " completed download of " + str(filename))
+        self.gui.insertUpdates(str(requester) + " completed download of " + str(filename))
         self.endFileClosing(udp,host,port)
 
     def ackReciever(self, parameters, currentTime, rtt, udp, segments,proceedOrCnacel,requester,filename):
@@ -306,7 +291,7 @@ class Server:
                     proceedOrCnacel[0] = 2
                 else:
                     proceedOrCnacel[0] = 3
-                    self.insertUpdates(str(requester) + " canceled download of " + str(filename))
+                    self.gui.insertUpdates(str(requester) + " canceled download of " + str(filename))
             else:
                 break
         print("reciever Done")
@@ -342,7 +327,7 @@ class Server:
                     fileSenderThread.start()
                     # self.fetchFile(packet[1],client)
 
-                    self.insertUpdates(str(currentClient.name) + " downloading " + str(packet[1]))
+                    self.gui.insertUpdates(str(currentClient.name) + " downloading " + str(packet[1]))
                     # self.download(client)
                 elif (packet[0] == "filesRequest"):
                     packet = ("filesRequest", self.files)
@@ -361,7 +346,7 @@ class Server:
                     if self.validate(packet[1], currentClient) == True:
                         answer = ("validate", True)
                         joiner = str(currentClient.name) + " has joined the chat"
-                        self.insertUpdates(joiner)
+                        self.gui.insertUpdates(joiner)
 
                     else:
                         answer = ("validate", False)

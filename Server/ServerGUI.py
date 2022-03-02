@@ -3,30 +3,27 @@ from tkinter import *
 from tkinter.ttk import Progressbar
 
 
-def displayData():
-    print("hi")
-    # for item in data:
-    # self.__t.insert(INSERT,item) # --add text here--
+class ServerGUI:
+    def __init__(self, server):
+        self.my_server = server
 
-
-class GUI:
-    def __init__(self, controller):
-        print("??")
+    def basicGUI(self):
         self.__root = Tk()
-        self.__controller = controller
         self.__widthSize = 500
         self.__HeightSize = 200
         self.__root.geometry(str(self.__widthSize) + "x" + str(self.__HeightSize))
         self.__root.resizable(False, False)
-        self.__myButton = Button(self.__root, text="start", height=2, width=8, command=controller.activeTrue, fg="blue",
-                                 bg="pink").grid(padx=5, pady=5)
-        self.__myButton2 = Button(self.__root, text="stop", height=2, width=8, command=controller.activeFalse
-                                  , fg="blue", bg="pink").grid(padx=5, pady=5)
-        self.__t = Text(self.__root, width=50, height=12)
-        self.__t.insert(INSERT, "amit")  # --add text here--
+        self.__t = Text(self.__root, width=60, height=11)
+        self.__t.insert(INSERT, "Server is running\n")  # --add text here--
         self.__t.configure(state="disabled", cursor="arrow")
-        self.__t.place(x=75, y=5)
+        self.__t.place(x=5, y=5)
+        self.__root.protocol("WM_DELETE_WINDOW", self.my_server.endServer)
         self.__root.mainloop()
+
+    def insertUpdates(self, message):
+        self.__t.configure(state="normal", cursor="arrow")
+        self.__t.insert(INSERT, str(message) + "\n")  # --add text here--
+        self.__t.configure(state="disabled", cursor="arrow")
 
 # root = Tk()
 # controller = ServerController.ServerController()
