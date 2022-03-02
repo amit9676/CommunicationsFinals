@@ -1,10 +1,9 @@
 import socket
 import threading
-from tkinter import *
 import pickle
 import time
 
-import GUI
+import ClientGUI
 
 Host = "127.0.0.1"
 PORT = 9090
@@ -39,7 +38,7 @@ class Client:
         self.initGui = True
 
         self.confirmedName = "Waiting"
-        self.gui = GUI.GUI(self)
+        self.gui = ClientGUI.GUI(self)
         # self.nameRequest()
         self.initGui = False
         # self.write(self.name)
