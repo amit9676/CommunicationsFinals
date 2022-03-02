@@ -26,7 +26,7 @@ class Server:
         self.__server.listen(15)
         self.clients = []
         self.threads = []
-        self.files = ["one", "two", "three", "four","five"]
+        self.files = ["one", "two", "three"]
 
         self.GuiThread = threading.Thread(target=self.basicGUI)
         self.GuiThread.daemon = True

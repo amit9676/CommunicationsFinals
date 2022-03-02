@@ -313,7 +313,7 @@ class Client:
         #print("done")
         #print(segments)
         udp.close()
-        self.insertFileTransferData("file downloaded")
+
         self.create(filename,segments)
 
     #def ackSender(self,udp):
@@ -321,10 +321,16 @@ class Client:
 
     def create(self, filename,segments):
         try:
+            lastchar = "a"
             with open("TestDirectory/"+filename+".txt", "wb") as file:
                 for i in range (0,len(segments)):
                     file.write(segments[i])
+                    if(i==len(segments)-1):
+                        lastchar=segments[i][-1]
+            print(lastchar)
             print("server completed transfering data")
+            #byte = lastchar.encode("utf-8")
+            self.insertFileTransferData("file downloaded, last byte is " + str(lastchar))
             self.downloadButton["state"] = "normal"
         except Exception as e:
             print(str(e))
