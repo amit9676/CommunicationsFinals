@@ -2,7 +2,8 @@ import socket
 import threading
 import pickle
 import time
-import ClientGUI
+
+from Client import ClientGUI
 
 Host = "127.0.0.1"
 PORT = 9090
@@ -29,12 +30,14 @@ class Client:
         7. shut down - server is down
         8. sending and receiving brodcast and private messages
     """
+
     def __init__(self, flag):
         if (flag == 0):
+            self.flag = 0
             self.test_const()
         else:
+            self.flag = 1
             self.real_const()
-
 
     def real_const(self):
         """
@@ -225,7 +228,8 @@ class Client:
         """
         self.isActive = False
         self.sock.close()
-        exit(0)
+        if self.flag != 0:
+            exit(0)
 
     def receive(self):
         """
@@ -278,7 +282,58 @@ class Client:
                 break
 
     def test_const(self):
-        pass
+        """
+                constructor of client for TESTS ONLY!!!!
+        """
+        # open socket and connect to server
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((Host, PORT))
+
+        # recieve thread is always listening to new packets that can be get from server
+        self.recieveThread = threading.Thread(target=self.receive)
+        self.recieveThread.daemon = True
+        self.isActive = True  # flag, activity of client
+        self.recieveThread.start()
+        self.name = ""  # this var holds the client name
+
+        # vars for downloading proccess
+        self.files = [""]
+        self.currentFile = ""
+        self.cancel_proceed_switch = 1  # condition switch: 1 == waiting to client to click proceed/cancel, 2 == user
+        # clicked proceed, 3 == user clicked cancel
+
+        self.insertMessage = True
+        self.insertUsers = 'update'
+        class dummy_GUI:
+            def __init__(self, client):
+                self.downloadButton = None
+                self.downloadingInfo = None
+                self.GuiDone = False
+                self.initGui = True
+                self.initGui = False
+                self.client = client
+
+            def insertMessage(self, param):
+                self.client.insertMessage = True
+
+            def halfway(self):
+                pass
+
+            def disable(self):
+                pass
+
+            def insertUsers(self, packet):
+                self.client.insertUsers = packet[0]
+
+            def displayFiles(self):
+                pass
+
+        self.gui = dummy_GUI(self)
+        # const gui and init name for client stage
+        self.initGui = True  # flag, init == initialize process
+        self.confirmedName = "Waiting"  # flag for validation name of client
+        self.initGui = False
 
 
-c = Client(1)
+if __name__ == '__main__':
+    c = Client(1)

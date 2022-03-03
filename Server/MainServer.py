@@ -32,8 +32,10 @@ class Server:
 
     def __init__(self, flag):
         if flag == 0:
+            self.flag = 0
             self.test_const()
         else:
+            self.flag = 1
             self.real_const()
 
     def real_const(self):
@@ -60,6 +62,28 @@ class Server:
         # ------- end of gui issues -----------
 
         self.activate()
+
+    def activate(self):
+        """
+        this function is PART OF THE CONSTRUCTOR!!!
+        activating the client
+        waiting to users to log in
+        """
+        print('Ready to serve..')
+        counter = 1
+
+        while self.active:
+            try:
+                client, address = self.__server.accept()  # waiting for client to connect
+                newClient = SingleClient(counter, client, "undefined")  # stock client data
+                self.clients_list.append(newClient)
+                th = threading.Thread(target=self.clientListen, args=(client,))  # listening to client messages
+                th.daemon = True
+                th.start()
+            except:
+                print("Server Disconnected")
+            print(self.clients_list)
+
 
     def send_broadcast_tcp(self, packet):
         """
@@ -114,25 +138,6 @@ class Server:
         # notify users
         self.updateUsers()
 
-    def activate(self):
-        """
-        activating the client
-        waiting to users to log in
-        """
-        print('Ready to serve..')
-        counter = 1
-
-        while self.active:
-            try:
-                client, address = self.__server.accept()  # waiting for client to connect
-                newClient = SingleClient(counter, client, "undefined")  # stock client data
-                self.clients_list.append(newClient)
-                th = threading.Thread(target=self.clientListen, args=(client,))  # listening to client messages
-                th.daemon = True
-                th.start()
-            except:
-                print("Server Disconnected")
-
     def endServer(self):
         """
         closing server and all of its connection
@@ -146,7 +151,8 @@ class Server:
             single_client.client_sock.close()
 
         self.__server.close()
-        exit(0)
+        if self.flag != 0:
+            exit(0)
 
     def updateUsers(self):
         """
@@ -212,17 +218,17 @@ class Server:
         search for available port (which didnt taken) for the downloading process
         :return: available port
         """
-        idx_port = 0  # field in the list of ports that we gonna return to user
+        port_num = 0  # field in the list of ports that we gonna return to user
         for p in self.ports.keys():  # loop over all ports
             if (self.ports[p]):
                 self.ports[p] = False
                 return p
             else:
-                idx_port = p
+                port_num = p
 
-        idx_port += 1
-        self.ports[idx_port] = False
-        return idx_port
+        port_num += 1
+        self.ports[port_num] = False
+        return port_num
 
     def fileSender(self, client, filename, size, numberOfSegments, segments, requester):
         """
@@ -470,4 +476,29 @@ class Server:
                 break
 
     def test_const(self):
-        pass
+        """ constructor """
+        # basic fields
+        self.ports = {9091: True}
+        self.__host = "127.0.0.1"  # ip of server (local!)
+        self.__port = 9090
+        self.active = True
+        # check option if it fails
+
+        self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP socket
+        self.__server.bind((self.__host, self.__port))  # activate socket
+        self.__server.listen(15)  # gap of users to be logged in in parallel
+        self.clients_list = []
+        self.threads_list = []  # all the open threads
+        self.files = ["one", "two", "three"]  # files in the server
+
+        class dummy_GUI:
+            def __init__(self, server):
+                self.server = server
+
+            def insertUpdates(self, notification):
+                pass
+
+        self.gui = dummy_GUI(self)
+
+        thh = threading.Thread(target=self.activate)
+        thh.start()

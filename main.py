@@ -3,7 +3,7 @@ import time
 
 if __name__ == '__main__':
     #Server = Server.ServerController.ServerController()
-    Server = Server.MainServer.Server()
+    Server = Server.MainServer.Server(1)
     #dicti = {1: "hi", 2:"Bye"}
     #dicti["tu"] = "fu"
     #print(dict["tu"])
