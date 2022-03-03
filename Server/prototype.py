@@ -75,23 +75,23 @@ class Server:
             else:
                 return
 
-    def private(self, packet):
+    def send_private_tcp(self, packet, address):
         """
-        sending message to specific client
-        :param packet: tupple with the details, packet[0] - type, packet[1] - data, packet[2] - address
-        :return: True for sent, False for unsent
+        sending via tcp socket (private msg - msg to specific client)
+        :param address: whom to be sent
+        :param packet: tupple to be sent
+        :return: True - sent, False - didnt sent
         """
-        address = packet[2]
-        for c in self.clients_list:  # search for the address client
-            if address == c.name:
-                data_string = pickle.dumps(packet)
+        data_string = pickle.dumps(packet)
+        for c in self.clients_list:
+            if (address == c.name):
                 try:
                     c.client_sock.send(data_string)
                     return True
-                except:
+                except Exception as e:
                     self.terminate_client(c)
                     break
-        return False
+            return False
 
     def terminate_client(self, client: SingleClient):
         """
@@ -170,204 +170,142 @@ class Server:
         return True
 
     def fetchFile(self, filename, client, requester):
-        """
-        start the executing of "downloading" process:
-            this func open the choosen file, and split it to segments of 1024 bytes(1kb)
-            ALL the segments stocked into a dict, marked with serial number (key from 0 to [file_size/1024])
-
-        then, sending this segments to the "file sender" function which executing the algorithm
-            that responsible on the sending flow and Congetion control
-        :param filename: string name
-        :param client: requester_socket
-        :param requester:  single_client.name
-        :return:
-        """
         size = os.path.getsize("Files/" + filename + ".txt")
         segments = {}
         s = 0
         try:
-            with open("Files/" + filename + ".txt", "rb") as file:  # reading bytes!
+            with open("Files/" + filename + ".txt", "rb") as file:
                 c = 0
                 while c <= size:
-                    data = file.read(1024)  # 1kb
-                    if not data:  # end of file
+                    data = file.read(1024)
+                    if not data:
+                        # print("!!")
                         break
-                    segments[s] = data  # set into the dict
+                    segments[s] = data
                     s += 1
                     c += len(data)
+            self.fileSender(client, filename, size, s, segments, requester)
         except Exception as e:
             print(str(e))
 
-        self.fileSender(client, filename, size, s, segments,
-                        requester)  # continue to send this file via the algorithm <3
-
     def portAssigner(self):
-        """
-        search for available port (which didnt taken) for the downloading process
-        :return: available port
-        """
-        idx_port = 0  # field in the list of ports that we gonna return to user
-        for p in self.ports.keys():  # loop over all ports
+        t = 0
+        for p in self.ports.keys():
             if (self.ports[p]):
                 self.ports[p] = False
                 return p
             else:
-                idx_port = p
+                t = p
 
-        idx_port += 1
-        self.ports[idx_port] = False
-        return idx_port
+        t += 1
+        self.ports[t] = False
+        return t
 
     def fileSender(self, client, filename, size, numberOfSegments, segments, requester):
-        """
+        # print(f"nof: {numberOfSegments}")
+        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        threadLock = threading.Lock()
+        threadLock.acquire()
+        port = self.portAssigner()
+        threadLock.release()
+        host = "127.0.0.2"
+        udp.bind((host, port))
+        packet = ("udp", filename, size, numberOfSegments, host, port)
+        data_string = pickle.dumps(packet)
+        client.send(data_string)
 
-        :param client: tcp_socket of specific client
-        :param filename: file_name
-        :param size: file_size
-        :param numberOfSegments: to how many segments we splited the file with the fetch_file func (constant parmeter)
-        :param segments: dict with all the segments (represent the segments which didnt got ack)
-        :param requester: client_name
-        :return:
-        """
-        udp = None
-        port = None
-        host = self.__host
-        try:
-            # open udp socket
-            udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        message, address = udp.recvfrom(1024)  # expect ("ready", time.time())
+        currentTime = time.time()
+        # future note - do something if initial upd establishment fails
 
-            # lock since we dont want a conflict on number of ports
-            threadLock = threading.Lock()
-            threadLock.acquire()
-            port = self.portAssigner()  # init the free port number
-            threadLock.release()
+        """----------------------------------------------- ALGORITHM ------------------------------------------------"""
 
-            host = self.__host  # ip for the udp connection
-            udp.bind((host, port))  # activate socket
-            packet = ("udp", filename, size, numberOfSegments, host, port)  # prepare packet <- with details of the connection
-            data_string = pickle.dumps(packet)
-            client.send(data_string)
+        openeddata = pickle.loads(message)
+        rtt = (currentTime - openeddata[1]) * 3
+        parameters = [1, 0, 32, 16]  # cwindow counter, ackCounter, maxWindow, therehold
+        proceedOrCnacel = [1]
 
-            message, address = udp.recvfrom(1024)  # expecting to: ("ready", time.time())
+        ackThread = threading.Thread(target=self.ackReciever, args=(
+            parameters, currentTime, rtt, udp, segments, proceedOrCnacel, requester, filename))
+        ackThread.daemon = True
+        ackThread.start()
+        k = 0
+        while (len(segments) > 0):
+
+            parameters[1] = 0
+
+            allKyes = []
+            for key in segments.keys():
+                allKyes.append(key)
+            for i in range(0, parameters[0]):
+                if (k == numberOfSegments // 2):
+                    segment2 = ("halfway",)
+                    data_string2 = pickle.dumps(segment2)
+                    udp.sendto(data_string2, address)
+                    while proceedOrCnacel[0] == 1:
+                        pass
+                    if (proceedOrCnacel[0] == 3):
+                        self.endFileClosing(udp, host, port)
+                        return
+                k += 1
+                if (i >= len(segments)):
+                    break
+                segment = (allKyes[i], segments[allKyes[i]])
+                data_string = pickle.dumps(segment)
+                udp.sendto(data_string, address)
+
+                time.sleep(0.001)
+
             currentTime = time.time()
 
-            """----------------------------------------------- ALGORITHM ------------------------------------------------"""
+            time.sleep(rtt)
+            # print(f"parametsrs: {parameters}")
+            if (parameters[1] < parameters[0]):
+                parameters[0] = max(1, parameters[0] // 4)  # func to reduce the window -> maximum(1, cwindow/2)
+                # 3//2 = 1
+                # 3/2 = 1.5
+                pass
+            elif (parameters[1] < parameters[3]):
+                parameters[0] *= 2
+            elif (parameters[1] < parameters[2]):
+                parameters[0] += 1
+            elif (parameters[1] == parameters[2]):
+                pass
+            else:
+                parameters[0] = 1
+                parameters[3] //= 2
 
-            opened_data = pickle.loads(message)
-            rtt = (currentTime - opened_data[1]) * 3  # taking time of the first packet sent to get appx time
-            parameters = [1, 0, 32, 16]  # cwindow counter, ackCounter, maxWindow, therehold
-            proceedOrCnacel = [1]  # flag 1 == none occures about proceed/cancel  2 == proceed, means to continue the download, 3 == the client canceled the download
+        self.gui.insertUpdates(str(requester) + " completed download of " + str(filename))
+        self.endFileClosing(udp, host, port)
 
-            ackThread = threading.Thread(target=self.ackReceiver, args=(
-                parameters, udp, segments, proceedOrCnacel, requester, filename))  # responsible to update about "ack" from client, look in decp of func
-            ackThread.daemon = True
-            ackThread.start()
-
-            packet_sent_counter = 0
-            while (len(segments) > 0):  # iterate as long as there is still segments that not got to the client
-
-                parameters[1] = 0  # ackcounter = 0
-
-                all_keys = []  # all segments that shall be sent
-                for key in segments.keys():
-                    all_keys.append(key)
-
-                for i in range(0, parameters[0]):  # gonna send "cwindow" times of segments
-
-                    if (packet_sent_counter == numberOfSegments // 2):  # got to halfway
-                        segment2 = ("halfway",)
-                        data_string2 = pickle.dumps(segment2)
-                        udp.sendto(data_string2, address)
-                        while proceedOrCnacel[0] == 1:
-                            pass
-
-                        # if procOrCancel[0] == 2 - there is nothing to do, just continue!
-
-                        if (proceedOrCnacel[0] == 3):  # canceled
-                            self.endFileClosing(udp, host, port)  # terminate the downloading
-                            return
-
-                    packet_sent_counter += 1
-
-                    if (i >= len(segments)):  # there is no segments to send anymore (for ex we window size is 10, but there was only 5 segments left)
-                        break
-
-                    segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data
-                    data_string = pickle.dumps(segment)
-                    udp.sendto(data_string, address)
-
-                    time.sleep(0.001)  # avoid from common bug - recv can merge bet 2 packets if its recived in the exact same time
-
-                time.sleep(rtt)  # let receiver the appx time to get the packets
-
-                if (parameters[1] < parameters[0]):  # if number of acks < cwindow - means some acks were not recived
-                    # parameters: cwindow counter, ackCounter, maxWindow, therehold
-                    parameters[0] = max(1, parameters[0] // 4)   # func to reduce the window -> maximum(1, cwindow/2)
-                    # 3//2 = 1
-                    # 3/2 = 1.5
-                    pass
-                elif (parameters[1] < parameters[3]):  # if all acks recieved, and we are yet to reach threshold
-                    parameters[0] *= 2
-                elif (parameters[1] < parameters[2]):  # if all acks recieved, and we passed thresgold, but yet to
-                    # reach max window
-                    parameters[0] += 1
-                elif (parameters[1] == parameters[2]):
-                    pass
-                else:
-                    parameters[0] = 1
-                    parameters[3] //= 2
-
-            self.gui.insertUpdates(str(requester) + " completed download of " + str(filename))  # print in gui
-            self.endFileClosing(udp, host, port)  # "clean the mess", close socket, free port etc..
-
-        except Exception as e:
-            print(str(e))
-            self.endFileClosing(udp, host, port)
-
-    def ackReceiver(self, parameters, udp, segments, proceedOrCancel, requester, filename):
-        """
-        orginizing "acks" from client
-        this function help the algorithm to be updated at any moment about which segment pakcet got "ack" (sent successfully to the client)
-        :param parameters: how many segments got ack till now
-        :param udp: socket with the client
-        :param segments: dict of all segments that didnt got ack yet
-        :param proceedOrCancel: flag: 2 == proceed, means to continue the download, 3 == the client canceled the download
-        :param requester: client name
-        :param filename: file name
-        :return:
-        """
+    def ackReciever(self, parameters, currentTime, rtt, udp, segments, proceedOrCnacel, requester, filename):
+        # while (parameters[1] < parameters[0] and time.time() - currentTime < (rtt * parameters[0])):
         while True:
             try:
-                message, address = udp.recvfrom(1024)  # waiting to get packet from client
+                message, address = udp.recvfrom(1024)
             except:
                 return
-            ack = pickle.loads(message)  # make that packet back to tupple
-            if (ack[0] == "ack"):  # got ack from client
+            ack = pickle.loads(message)
+            if (ack[0] == "ack"):
                 try:
                     del segments[ack[1]]
                     parameters[1] += 1
                 except:
                     continue
-
-            elif (ack[0] == "halfway"):  # downloading is on halfway stage, user decides to proceed/cancel
+                # if (parameters[1] == parameters[0]):
+                #     print("flow")
+            elif (ack[0] == "halfway"):
                 if ack[1] == "proceed":
-                    proceedOrCancel[0] = 2
+                    proceedOrCnacel[0] = 2
                 else:
-                    proceedOrCancel[0] = 3
+                    proceedOrCnacel[0] = 3
                     self.gui.insertUpdates(str(requester) + " canceled download of " + str(filename))
             else:
                 break
-
         print("reciever Done")
         """----------------------------------------------- ALGORITHM ------------------------------------------------"""
 
     def endFileClosing(self, udp, host, port):
-        """
-        the server inform itself that the file download ended (soft way to inform thread without harsh interupt)
-        :param udp: udp socket
-        :param host: ip_server
-        :param port: port_socket
-        """
         notack = ("notack",)
         notack_data = pickle.dumps(notack)
         udp.sendto(notack_data, (host, port))
@@ -412,17 +350,14 @@ class Server:
                 elif (packet[0] == "filesRequest"):
                     # reply all the available files to be downloaded
                     packet = ("filesRequest", self.files)
-                    files = pickle.dumps(packet)
-                    client_socket.send(files)
+                    self.send_private_tcp(packet, client_socket)
 
                 elif (packet[0] == "private"):
-                    if (self.private(packet)):
-                        data = pickle.dumps(packet)
-                        client_socket.send(data)
+                    if (self.send_private_tcp(packet, packet[2])):
+                        self.send_private_tcp(packet, client_socket)
                     else:
                         error = ("error",)
-                        data = pickle.dumps(error)
-                        client_socket.send(data)
+                        self.send_private_tcp(error, client_socket)
 
                 elif (packet[0] == "validate"):
                     answer = None
@@ -436,8 +371,7 @@ class Server:
 
                     else:
                         answer = ("validate", False)
-                    data = pickle.dumps(answer)
-                    client_socket.send(data)  # reply to client
+                    self.send_private_tcp(answer, client_socket)
 
             except Exception as e:
                 print(str(e))
