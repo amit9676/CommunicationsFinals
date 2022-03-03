@@ -220,6 +220,25 @@ class Server:
 
     def fileSender(self, client, filename, size, numberOfSegments, segments, requester):
         """
+        this func create udp socket with the client, and start to send the segments via the next algo
+
+        Algorithm description:
+        first, define few parameters: cwindow - how many packets the algo allow to send in one iterate
+                                        ackcounter - how many acks received from client
+                                        maxwindow - wont allow to cwindow to cross this limit of window
+                                        threshold - from that point the increase of cwindow will be linear in place of exponential
+            iterating over all segments for each iteration, do:
+                1. trying to send "cwindow" amount of segments
+                2. waiting to see if all of the segments received at the client (via get "ack")
+                3. increase/decrease or no change of the cwindow via the next rules:
+                        a. got ack to all the segments:
+                            a.1 - cwindow < threshold -> cwindow size increase by 2 (*2)
+                            a.2 - cwindow > threshold && cwindow < maxwindow -> cwindow size +1
+                            a.3 cwindow > threshold && > maxwindow -> cwindow size unchanged
+                        b. didnt got ack to all the segments:
+                            decrease: maximum(1, cwindow/2)
+                4. when all the segments received at the client -> notify about that to the client and close socket, free port
+
 
         :param client: tcp_socket of specific client
         :param filename: file_name
