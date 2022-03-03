@@ -323,9 +323,16 @@ class Server:
                     if (i >= len(segments)):  # there is no segments to send anymore (for ex we window size is 10, but there was only 5 segments left)
                         break
 
-                    segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data
-                    data_string = pickle.dumps(segment)
-                    udp.sendto(data_string, address)
+                    #segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data
+                    #data_string = pickle.dumps(segment)
+                    #udp.sendto(data_string, address)
+                    
+                    if all_keys[i] in segments:
+                        segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data
+                        data_string = pickle.dumps(segment)
+                        udp.sendto(data_string, address)
+                    else:
+                        continue
 
                     time.sleep(0.001)  # avoid from common bug - recv can merge bet 2 packets if its recived in the exact same time
 
