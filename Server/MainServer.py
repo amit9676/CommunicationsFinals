@@ -30,7 +30,13 @@ class Server:
     all the clients are
     """
 
-    def __init__(self):
+    def __init__(self, flag):
+        if flag == 0:
+            self.test_const()
+        else:
+            self.real_const()
+
+    def real_const(self):
         """ constructor """
         # basic fields
         self.ports = {9091: True}
@@ -462,3 +468,6 @@ class Server:
                 print(str(e))
                 self.terminate_client(currentClient)
                 break
+
+    def test_const(self):
+        pass

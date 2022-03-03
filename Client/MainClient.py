@@ -29,12 +29,19 @@ class Client:
         7. shut down - server is down
         8. sending and receiving brodcast and private messages
     """
-    def __init__(self):
+    def __init__(self, flag):
+        if (flag == 0):
+            self.test_const()
+        else:
+            self.real_const()
+
+
+    def real_const(self):
         """
-        constructor of client
-        connecting to the server via TCP connection
-        construct the gui and hold a pointer to the gui obj of the client
-        """
+                constructor of client
+                connecting to the server via TCP connection
+                construct the gui and hold a pointer to the gui obj of the client
+                """
         # open socket and connect to server
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((Host, PORT))
@@ -270,5 +277,8 @@ class Client:
                 self.sock.close()
                 break
 
+    def test_const(self):
+        pass
 
-c = Client()
+
+c = Client(1)
