@@ -41,7 +41,7 @@ class GUI:
         self.nameBox = Entry(self.root1, width=25, borderwidth=1)
         self.nameBox.place(x=10, y=35)
         self.chosenName = Label(self.root1, text="")
-        self.chosenName.place(x=10, y=55)
+        self.chosenName.place(x=30, y=55)
         self.nameEnter = Button(self.root1, text="Enter", height=1, width=12, command=self.proceed, fg="blue",
                                 bg="pink")
         self.nameEnter.place(x=42, y=90)

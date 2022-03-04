@@ -2,10 +2,12 @@ import socket
 import threading
 import pickle
 import time
+import tkinter.filedialog
 
+import IPRequester
 from Client import ClientGUI
 
-Host = "127.0.0.1"
+Host = "localhost"
 PORT = 9090
 
 
@@ -45,9 +47,33 @@ class Client:
                 connecting to the server via TCP connection
                 construct the gui and hold a pointer to the gui obj of the client
                 """
+
+
+        ipConfirmed = False
+        ipText = ""
+        while not ipConfirmed:
+            try:
+                ipRequest = IPRequester.IPRequester().proceed(ipText)
+                if ipRequest == "":
+                    return
+                self.ports = {9091: True}
+                self.__host = ipRequest  # ip of server (local!)
+                self.__port = 9090
+                self.active = True
+                # check option if it fails
+
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP socket
+                self.sock.connect((self.__host, self.__port))  # activate socket
+                # gap of users to be logged in in parallel
+                ipConfirmed = True
+            except:
+                ipText = "Connection failed, please try again"
+
+
+
         # open socket and connect to server
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((Host, PORT))
+        #self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock.connect((Host, PORT))
 
         # recieve thread is always listening to new packets that can be get from server
         self.recieveThread = threading.Thread(target=self.receive)
@@ -117,7 +143,7 @@ class Client:
             packet = ("private", self.name, address, message)
         self.send_packet_tcp(packet)
 
-    def udp(self, filename, size, sizeOfSegments, host, port):
+    def udp(self, filename, size, sizeOfSegments, host, port, fileExt):
         """
         open udp socket with the server and start to execute the recive file progress
         :param filename: string, which file we would like to download
@@ -137,11 +163,11 @@ class Client:
         udp.sendto(data_string, (host, port))
 
         segments = {}
-        self.recieveFile(filename, size, udp, sizeOfSegments, host, port, segments)
+        self.recieveFile(filename, size, udp, sizeOfSegments, host, port, segments, fileExt)
 
         udp.close()  # end of progress
 
-    def recieveFile(self, filename, size, udp, sizeOfSegments, host, port, segments):
+    def recieveFile(self, filename, size, udp, sizeOfSegments, host, port, segments, fileExt):
         # print(f"active threads: {threading.active_count()}")
         """
         responsible to get the packets of file from the server and
@@ -162,7 +188,7 @@ class Client:
             segment = pickle.loads(message)
 
             # updating gui, how many bytes has been downloaded
-            status = "downloading " + str(counter * 1024) + "/" + str(size) + " bytes"
+            status = "downloading " + str(len(segments) * 1024) + "/" + str(size) + " bytes"
             self.gui.downloadingInfo.set(status)
 
             if (segment[0] == "halfway"):  # got to halfway of size of download
@@ -199,24 +225,34 @@ class Client:
             time.sleep(
                 0.001)  # avoid from common bug - recv can merge bet 2 packets if its recived in the exact same time
 
-        self.create(filename, segments)  # recv ended, shall merge the segments to one file
+        self.create(filename, segments, fileExt)  # recv ended, shall merge the segments to one file
 
-    def create(self, filename, segments):
+    def create(self, filename, segments, fileExt):
         """
         connect all the packets and make from them the whole file <3
         :param filename: string_name
         :param segments: dictionary, all the packets arranged as: key - serial number of the packet, value - the content
         """
-        try:
-            lastchar = "a"
-            with open("TestDirectory/" + filename + ".txt", "wb") as file:  # open new file
-                for i in range(0, len(segments)):  # loop over all the segments and copy the contents
-                    file.write(segments[i])
-                    if (i == len(segments) - 1):
-                        lastchar = segments[i][-1]
 
-            # transfer the data to gui to represent it
-            self.gui.downloadingInfo.set("file downloaded, last byte is " + str(lastchar))
+        try:
+            print(filename +", " + fileExt)
+            filePath = tkinter.filedialog.asksaveasfilename(defaultextension=".jpg",
+                                                            filetypes=[("Text file",".txt"),
+                                                                       ("Photo",".jpg"),
+                                                                       ("All files",".*"),])
+            print(filename +", " + fileExt)
+            lastchar = "a"
+            try:
+                with open(filePath, "wb") as file:  # open new file
+                    for i in range(0, len(segments)):  # loop over all the segments and copy the contents
+                        file.write(segments[i])
+                        if (i == len(segments) - 1):
+                            lastchar = segments[i][-1]
+
+                # transfer the data to gui to represent it
+                self.gui.downloadingInfo.set("file downloaded, last byte is " + str(lastchar))
+            except:
+                self.gui.downloadingInfo.set("download canceled")
             self.gui.downloadButton["state"] = "normal"
 
         except Exception as e:
@@ -263,7 +299,7 @@ class Client:
                 elif packet[
                     0] == "udp":  # server is ready to start downloading process, shall xfer community to udp connection (start new thread for downloading file)
                     tempThread = threading.Thread(target=self.udp,
-                                                  args=(packet[1], packet[2], packet[3], packet[4], packet[5]))
+                                                  args=(packet[1], packet[2], packet[3], packet[4], packet[5],packet[6]))
                     tempThread.daemon = True
                     tempThread.start()
                     # self.udp(packet[1], packet[2])

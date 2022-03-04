@@ -4,6 +4,7 @@ import pickle
 import os
 import time
 from Server.ServerGUI import ServerGUI
+import IPRequester
 
 
 class SingleClient:
@@ -41,18 +42,31 @@ class Server:
     def real_const(self):
         """ constructor """
         # basic fields
-        self.ports = {9091: True}
-        self.__host = "127.0.0.1"  # ip of server (local!)
-        self.__port = 9090
-        self.active = True
-        # check option if it fails
 
-        self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP socket
-        self.__server.bind((self.__host, self.__port))  # activate socket
-        self.__server.listen(15)  # gap of users to be logged in in parallel
+        ipConfirmed = False
+        ipText = ""
+        while not ipConfirmed:
+            try:
+                ipRequest = IPRequester.IPRequester().proceed(ipText)
+                if ipRequest == "":
+                    return
+                self.ports = {9091: True}
+                self.__host = ipRequest  # ip of server (local!)
+                self.__port = 9090
+                self.active = True
+                # check option if it fails
+
+                self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP socket
+                self.__server.bind((self.__host, self.__port))  # activate socket
+                  # gap of users to be logged in in parallel
+                ipConfirmed = True
+            except:
+                ipText = "Connection failed, please try again"
+        self.__server.listen(15)
         self.clients_list = []
         self.threads_list = []  # all the open threads
-        self.files = ["one", "two", "three"]  # files in the server
+        self.files = os.listdir("Files")
+        #self.files = ["one", "two", "three"]  # files in the server
 
         # ------- const gui of server ----------
         self.gui = ServerGUI(self)
@@ -181,7 +195,7 @@ class Server:
         requester.name = name
         return True
 
-    def fetchFile(self, filename, client, requester):
+    def fetchFile(self, filename, fileExtension, client, requester):
         """
         start the executing of "downloading" process:
             this func open the choosen file, and split it to segments of 1024 bytes(1kb)
@@ -194,11 +208,12 @@ class Server:
         :param requester:  single_client.name
         :return:
         """
-        size = os.path.getsize("Files/" + filename + ".txt")
+
+        size = os.path.getsize("Files/" + filename + fileExtension)
         segments = {}
         s = 0
         try:
-            with open("Files/" + filename + ".txt", "rb") as file:  # reading bytes!
+            with open("Files/" + filename + fileExtension, "rb") as file:  # reading bytes!
                 c = 0
                 while c <= size:
                     data = file.read(1024)  # 1kb
@@ -210,8 +225,9 @@ class Server:
         except Exception as e:
             print(str(e))
 
+        print(segments)
         self.fileSender(client, filename, size, s, segments,
-                        requester)  # continue to send this file via the algorithm <3
+                        requester, fileExtension)  # continue to send this file via the algorithm <3
 
     def portAssigner(self):
         """
@@ -230,7 +246,7 @@ class Server:
         self.ports[port_num] = False
         return port_num
 
-    def fileSender(self, client, filename, size, numberOfSegments, segments, requester):
+    def fileSender(self, client, filename, size, numberOfSegments, segments, requester, fileExt):
         """
         this func create udp socket with the client, and start to send the segments via the next algo
 
@@ -275,7 +291,7 @@ class Server:
 
             host = self.__host  # ip for the udp connection
             udp.bind((host, port))  # activate socket
-            packet = ("udp", filename, size, numberOfSegments, host, port)  # prepare packet <- with details of the connection
+            packet = ("udp", filename, size, numberOfSegments, host, port, fileExt)  # prepare packet <- with details of the connection
             data_string = pickle.dumps(packet)
             client.send(data_string)
 
@@ -290,7 +306,7 @@ class Server:
             proceedOrCnacel = [1]  # flag 1 == none occures about proceed/cancel  2 == proceed, means to continue the download, 3 == the client canceled the download
 
             ackThread = threading.Thread(target=self.ackReceiver, args=(
-                parameters, udp, segments, proceedOrCnacel, requester, filename))  # responsible to update about "ack" from client, look in decp of func
+                parameters, udp, segments, proceedOrCnacel, requester, filename, fileExt))  # responsible to update about "ack" from client, look in decp of func
             ackThread.daemon = True
             ackThread.start()
 
@@ -355,14 +371,14 @@ class Server:
                     parameters[0] = 1
                     parameters[3] //= 2
 
-            self.gui.insertUpdates(str(requester) + " completed download of " + str(filename))  # print in gui
+            self.gui.insertUpdates(str(requester) + " completed download of " + str(filename + fileExt))  # print in gui
             self.endFileClosing(udp, host, port)  # "clean the mess", close socket, free port etc..
 
         except Exception as e:
             print(str(e))
             self.endFileClosing(udp, host, port)
 
-    def ackReceiver(self, parameters, udp, segments, proceedOrCancel, requester, filename):
+    def ackReceiver(self, parameters, udp, segments, proceedOrCancel, requester, filename, fileExt):
         """
         orginizing "acks" from client
         this function help the algorithm to be updated at any moment about which segment pakcet got "ack" (sent successfully to the client)
@@ -392,7 +408,7 @@ class Server:
                     proceedOrCancel[0] = 2
                 else:
                     proceedOrCancel[0] = 3
-                    self.gui.insertUpdates(str(requester) + " canceled download of " + str(filename))
+                    self.gui.insertUpdates(str(requester) + " canceled download of " + str(filename + fileExt))
             else:
                 break
 
@@ -439,8 +455,11 @@ class Server:
 
                 elif packet[0] == "download":  # download
                     # starting in another thread the process of downloading with the client
+                    fileNameandExtension = packet[1].split(".")
+                    fileNameandExtension[1] = "." + fileNameandExtension[1]
+                    print(fileNameandExtension)
                     fileSenderThread = threading.Thread(target=self.fetchFile,
-                                                        args=(packet[1], client_socket, currentClient.name))
+                                                        args=(fileNameandExtension[0],fileNameandExtension[1], client_socket, currentClient.name))
                     fileSenderThread.daemon = True
                     fileSenderThread.start()
 
