@@ -162,8 +162,8 @@ class GUI:
         user pressed to send message, prepare data to be sent via the client
         """
         message = self.eMsg.get()  # msg itself
-        addressee = self.sendToEntry.get()  # who to send it to
-        self.client.sendToServer(message, addressee)
+        address = self.sendToEntry.get()  # who to send it to
+        self.client.sendToServer(message, address)
 
     """ ----------------------------- files functions ------------------------------------------------"""
 

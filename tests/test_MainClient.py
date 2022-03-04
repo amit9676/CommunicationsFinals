@@ -19,9 +19,9 @@ class TestClient(TestCase):
         server_test.operate_tcp(2)
         client_test = Client(0)
         client_test.gui.GuiDone = True
-        time.sleep(0.001)
+        time.sleep(0.01)
         client_test.requestInitialData()
-        time.sleep(0.001)
+        time.sleep(0.01)
         self.assertEqual('update', server_test.packet1[0])
         self.assertEqual('filesRequest', server_test.packet2[0])
         client_test.isActive = False
@@ -37,9 +37,9 @@ class TestClient(TestCase):
         server_test.operate_tcp(1)
         client_test = Client(0)
         client_test.gui.GuiDone = True
-        time.sleep(0.001)
+        time.sleep(0.01)
         client_test.send_packet_tcp(('broadcast', "hi world"))
-        time.sleep(0.001)
+        time.sleep(0.01)
         self.assertEqual('broadcast', server_test.packet1[0])
         self.assertEqual('hi world', server_test.packet1[1])
         client_test.isActive = False
@@ -52,15 +52,13 @@ class TestClient(TestCase):
         """
         time.sleep(2)
         server_test = dummy_server()
-        server_test.operate_tcp(2)
+        server_test.operate_tcp(1)
         client_test = Client(0)
         client_test.gui.GuiDone = True
-        time.sleep(0.001)
+        time.sleep(0.01)
         client_test.sendToServer("hi world", "")
-        time.sleep(0.001)
-        client_test.sendToServer("hi world", "b")
+        time.sleep(0.01)
         self.assertEqual('broadcast', server_test.packet1[0])
-        self.assertEqual('private', server_test.packet2[0])
         client_test.isActive = False
         server_test.server.close()
         client_test.stop()
@@ -73,9 +71,10 @@ class TestClient(TestCase):
         client_test = Client(0)
         client_test.gui.GuiDone = True
         server_test.th.join(0.5)
-        time.sleep(0.001)
         packet = ('broadcast',)
+        time.sleep(0.01)
         server_test.send_packet(packet, client_test.sock)
+        time.sleep(0.01)
         client_test.stop()
         try:
             client_test.sock.send(pickle.dumps(packet))
@@ -94,9 +93,10 @@ class TestClient(TestCase):
         client_test = Client(0)
         client_test.gui.GuiDone = True
         server_test.th.join(0.5)
-        time.sleep(0.001)
+        time.sleep(0.01)
         packet = ('broadcast',)
         server_test.send_packet(packet, client_test.sock)
+        time.sleep(0.01)
         packet = ('private',)
         server_test.send_packet(packet, client_test.sock)
         time.sleep(0.05)

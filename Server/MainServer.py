@@ -528,3 +528,7 @@ class Server:
 
         thh = threading.Thread(target=self.activate)
         thh.start()
+
+
+if __name__ == '__main__':
+    Server = Server(1)

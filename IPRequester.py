@@ -1,11 +1,19 @@
 from tkinter import *
 
-class IPRequester:
 
+class IPRequester:
+    """
+    gui class to small window
+    asks the user to input the ip address that he want to log
+    """
     def __init__(self):
         self.globali = ""
 
-    def GUIItSelf(self,text):
+    def GUIItSelf(self, text):
+        """
+        the window
+        :param text: text of window
+        """
         self.root1 = Tk()
         self.initGui = True  # flag, represent this is initialize process
         # alot of vars of the gui
@@ -22,17 +30,20 @@ class IPRequester:
         self.chosenIP = Label(self.root1, textvariable=self.IPInfo)
         self.chosenIP.place(x=10, y=55)
         self.IPEnter = Button(self.root1, text="Enter", height=1, width=12, command=self.destroy, fg="blue",
-                                bg="pink")
+                              bg="pink")
         self.IPEnter.place(x=78, y=90)
 
         self.root1.protocol("WM_DELETE_WINDOW")  # if window closed in place of inputed name, shut down client
         self.root1.mainloop()
 
     def destroy(self):
+        """
+        close objects, threads relevant to this gui window  meanwhile the exit step
+        """
         self.globali = self.nameIP.get()
         self.root1.destroy()
 
-    def proceed(self,text):
+    def proceed(self, text):
         """
         part of Validate phase
         this funct waiting to the user input that represent his name
