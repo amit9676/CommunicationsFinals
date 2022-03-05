@@ -152,7 +152,10 @@ class Server:
         self.clients_list.remove(client)
 
         # notify users
-        self.updateUsers()
+
+        list = self.updateUsers()
+        initialData = ("update", list)
+        self.send_broadcast_tcp(initialData)  # send the update to all the client users
 
     def endServer(self):
         """

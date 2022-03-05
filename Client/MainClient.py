@@ -303,9 +303,15 @@ class Client:
                                                                        ("All files",".*"),])
             lastchar = "a"
 
-            fileparts = filePath.split("/")
-            if(filePath[-4:] != fileExt and '.' not in filePath and fileparts[0] != ''):
-                filePath += fileExt
+            try:
+                fileparts = filePath.split("/")
+                if (filePath[-4:] != fileExt and '.' not in filePath and fileparts[0] != ''):
+                    filePath += fileExt
+            except:
+                self.gui.downloadingInfo.set("download canceled")
+                self.gui.downloadButton["state"] = "normal"
+                return
+
             try:
                 with open(filePath, "wb") as file:  # open new file
                     for i in range(0, len(segments)):
