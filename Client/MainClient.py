@@ -107,16 +107,14 @@ class Client:
     def requestInitialData(self):
         """
         this function activates once, only with creating the client obj, its gui, and starting the connection with the server
-        this func asks the server for 2 details: who is the active users rn in the chat and which files is available to be downloaded rn
+        this func asks the server for 2 details: who is the active users right now
+        in the chat and which files are available to be downloaded right now
         :return:
         """
         while not self.gui.GuiDone:  # guiDone is flag, waiting for gui window to be constructed
             pass
-        packet1 = ("update",)
-        packet2 = ("filesRequest",)
-        self.send_packet_tcp(packet1)
-        time.sleep(0.001)
-        self.send_packet_tcp(packet2)
+        initialPacket = ("initialStart",)
+        self.send_packet_tcp(initialPacket)
 
     def send_packet_tcp(self, packet):
         """
@@ -143,6 +141,54 @@ class Client:
             packet = ("private", self.name, address, message)
         self.send_packet_tcp(packet)
 
+    def ackRecieverUdp(self, udp, host, port, segments,fileAcceptingMode,size):
+        """this function purpose is to listen to all incoming udp packets, and because
+        communication may not always be relaiable, there are lots of them"""
+        try:
+            while fileAcceptingMode[0] != 3: #while we are accepting packets..
+                message, address = udp.recvfrom(1124)  # waiting to recv packet from server
+                packet = pickle.loads(message)
+                if(packet[0] == "ack"):
+                    #server knows we are connected, start recieving files!
+                    fileAcceptingMode[0] = 1
+                elif(packet[0] == "halfway"):
+                    """server stopped sending, now client has to choose if to proceed file tansfer,
+                    or cancel it"""
+                    fileAcceptingMode[0] = 2
+                    response = ("halfwayAck",)
+                    data_string = pickle.dumps(response)
+                    udp.sendto(data_string, (host, port))
+                elif(packet[0] == "proceedAck"):
+                    """server now knows client chose to proceed file transfer"""
+                    fileAcceptingMode[0] = 1
+                else:
+                    """file data packet, add it to the collection"""
+                    fileAcceptingMode[0] = 1
+                    self.filePackedReieved(segments,packet,udp,host,port,size)
+        except:
+            pass
+
+
+    def callrecieverThread(self,udp,host,port,segments,fileAcceptingMode,size):
+        """activate seperate thread to function above"""
+        ackThread = threading.Thread(target=self.ackRecieverUdp, args=(udp, host, port, segments,
+                                                                       fileAcceptingMode,size))
+        ackThread.daemon = True
+        ackThread.start()
+
+    def filePackedReieved(self,segments,segment,udp,host,port,size):
+        """when udp packet is recieved, add it to list, and send ack to server"""
+        segments[segment[0]] = segment[1]
+
+        # updating gui, how many bytes has been downloaded
+        currentsize = min(len(segments) * 1024,size)
+        status = "downloading " + str(currentsize) + "/" + str(size) + " bytes"
+        self.gui.downloadingInfo.set(status)
+
+        response = ("ack", segment[0])
+        data_string = pickle.dumps(response)
+        udp.sendto(data_string, (host, port))
+
     def udp(self, filename, size, sizeOfSegments, host, port, fileExt):
         """
         open udp socket with the server and start to execute the recive file progress
@@ -160,18 +206,36 @@ class Client:
         data_string = pickle.dumps(packet)
 
         # send packet
-        udp.sendto(data_string, (host, port))
+        print("client sent")
+        fileAcceptingMode = [0]
+        """current file transfer mode"""
+        #0 = not established udp yet
+        #1 recieving files
+        #2 = waiting, proceed or cancel
+        #3 = we are done accepting packets
 
         segments = {}
-        self.recieveFile(filename, size, udp, sizeOfSegments, host, port, segments, fileExt)
+        self.callrecieverThread(udp, host, port, segments,fileAcceptingMode,size)
+        #activate seperate thread for udp listener
+
+        """the reason this while loop is nesesary, is because the udp packet may get lost,
+        so as long we didnt get any ack from the server, we repeatedly send ready packet
+        every second"""
+        while(fileAcceptingMode[0] == 0):
+            udp.sendto(data_string, (host, port))
+            time.sleep(1)
+
+
+        self.recieveFile(filename, size, udp, sizeOfSegments, host, port, segments, fileExt,fileAcceptingMode)
+        """this function manage the recieving operation, works with the same time with the
+        ackRecieverUdp function"""
 
         udp.close()  # end of progress
 
-    def recieveFile(self, filename, size, udp, sizeOfSegments, host, port, segments, fileExt):
+    def recieveFile(self, filename, size, udp, sizeOfSegments, host, port, segments, fileExt,fileAcceptingMode):
         # print(f"active threads: {threading.active_count()}")
         """
-        responsible to get the packets of file from the server and
-                resend to the server "ack" for each segment that has been arrived successfully
+        responsible manage the file recieving operation
         :param filename: String_name
         :param size: in bytes of the downloading file
         :param udp: socket
@@ -180,22 +244,16 @@ class Client:
         :param port: of the connection
         :param segments: dict that gonna hold all the segments of the file
         """
-        counter = 0  # how many segments arrived
 
         while len(segments) < sizeOfSegments:
             # iterating as long as the file keep downloading
-            message, address = udp.recvfrom(1124)  # waiting to recv packet from server
-            segment = pickle.loads(message)
 
-            # updating gui, how many bytes has been downloaded
-            status = "downloading " + str(len(segments) * 1024) + "/" + str(size) + " bytes"
-            self.gui.downloadingInfo.set(status)
 
-            if (segment[0] == "halfway"):  # got to halfway of size of download
+            if (fileAcceptingMode[0] == 2):  # got to halfway of size of download
                 # condition switch: 1 == waiting to client to click proceed/cancel, 2 == user
                 # clicked proceed, 3 == user clicked cancel
-
                 self.gui.halfway()
+                fileAcceptingMode[0] = 2
                 while self.cancel_proceed_switch == 1:
                     time.sleep(0.01)  # little side note avoiding from iterating with full power of the CPU
                     pass
@@ -204,6 +262,13 @@ class Client:
                     halfWayAnswer = ("halfway", "proceed")
                     halfWayData = pickle.dumps(halfWayAnswer)
                     udp.sendto(halfWayData, (host, port))
+
+                    """because communication may be unstable - we might need to send serveral
+                     notfications to the server that we wish to proceed"""
+                    while fileAcceptingMode[0]==2:
+                        udp.sendto(halfWayData, (host, port))
+                        time.sleep(1)
+
                     self.cancel_proceed_switch = 1
 
                 if (self.cancel_proceed_switch == 3):
@@ -213,18 +278,13 @@ class Client:
                     udp.close()
                     self.gui.downloadingInfo.set("download canceled")
                     self.cancel_proceed_switch = 1
+                    fileAcceptingMode[0] = 3
                     return
-
-            else:  # send ack since we got the packet
-                segments[segment[0]] = segment[1]
-                response = ("ack", segment[0])
-                data_string = pickle.dumps(response)
-                udp.sendto(data_string, (host, port))
-                counter += 1
 
             time.sleep(
                 0.001)  # avoid from common bug - recv can merge bet 2 packets if its recived in the exact same time
 
+        fileAcceptingMode[0] = 3
         self.create(filename, segments, fileExt)  # recv ended, shall merge the segments to one file
 
     def create(self, filename, segments, fileExt):
@@ -233,25 +293,27 @@ class Client:
         :param filename: string_name
         :param segments: dictionary, all the packets arranged as: key - serial number of the packet, value - the content
         """
-
+        # for key in segments.keys():
+        #     print(key)
         try:
-            print(filename +", " + fileExt)
-            filePath = tkinter.filedialog.asksaveasfilename(defaultextension=".jpg",
+            filePath = tkinter.filedialog.asksaveasfilename(
                                                             filetypes=[("Text file",".txt"),
                                                                        ("Photo",".jpg"),
                                                                        ("All files",".*"),])
-            print(filename +", " + fileExt)
             lastchar = "a"
             try:
                 with open(filePath, "wb") as file:  # open new file
-                    for i in range(0, len(segments)):  # loop over all the segments and copy the contents
+                    for i in range(0, len(segments)):
+                        # loop over all the segments and copy the contents
                         file.write(segments[i])
                         if (i == len(segments) - 1):
                             lastchar = segments[i][-1]
 
                 # transfer the data to gui to represent it
                 self.gui.downloadingInfo.set("file downloaded, last byte is " + str(lastchar))
-            except:
+            except Exception as e:
+                print("im here")
+                print(str(e))
                 self.gui.downloadingInfo.set("download canceled")
             self.gui.downloadButton["state"] = "normal"
 
@@ -278,31 +340,33 @@ class Client:
             try:
                 data = self.sock.recv(1024)
                 packet = pickle.loads(data)
-                print(packet)
-                if packet[
-                    0] == "broadcast" and self.gui.GuiDone:  # command to gui to print the data as broadcast message
+                if packet[0] == "broadcast" and self.gui.GuiDone:  # command to gui to print the data as broadcast message
                     self.gui.insertMessage(packet[1] + " (broadcast): " + packet[2])
                 elif packet[0] == "private" and self.gui.GuiDone:  # command to gui to print the data as private message
                     if self.name == packet[1]:
                         self.gui.insertMessage(packet[1] + " (to " + packet[2] + "): " + packet[3])
                     else:
                         self.gui.insertMessage(packet[1] + " (to you): " + packet[3])
-                elif packet[
-                    0] == "error" and self.gui.GuiDone:  # command to gui to notify user: invalid message has been sent
+                elif packet[0] == "error" and self.gui.GuiDone:  # command to gui to notify user: invalid message has been sent
                     self.gui.insertMessage("message could not be sent")
-                elif packet[0] == "filesRequest":  # start process of downloading file
+                elif packet[0] == "downloadFailed" and self.gui.GuiDone:  # command to gui to notify user: invalid message has been sent
+                    self.gui.insertMessage("download attempt failed, please try again")
+                    self.gui.downloadButton["state"] = "normal"
+                # elif packet[0] == "filesRequest":  # start process of downloading file
+                #     print("recieved")
+                #     self.files = packet[1]
+                #     self.gui.displayFiles()
+                elif packet[0] == "update":  # an update of details from the server, command to gui to represent it to user
+                    self.gui.insertUsers(packet[1])
+                elif packet[0] == "initialData":
+                    self.gui.insertUsers(packet[2])
                     self.files = packet[1]
                     self.gui.displayFiles()
-                elif packet[
-                    0] == "update":  # an update of details from the server, command to gui to represent it to user
-                    self.gui.insertUsers(packet)
-                elif packet[
-                    0] == "udp":  # server is ready to start downloading process, shall xfer community to udp connection (start new thread for downloading file)
+                elif packet[0] == "udp":  # server is ready to start downloading process, shall xfer community to udp connection (start new thread for downloading file)
                     tempThread = threading.Thread(target=self.udp,
                                                   args=(packet[1], packet[2], packet[3], packet[4], packet[5],packet[6]))
                     tempThread.daemon = True
                     tempThread.start()
-                    # self.udp(packet[1], packet[2])
                 elif packet[0] == "validate":  # validate process
                     if (packet[1] == True):
                         self.confirmedName = "True"

@@ -17,7 +17,7 @@ class IPRequester:
         self.root1 = Tk()
         self.initGui = True  # flag, represent this is initialize process
         # alot of vars of the gui
-        self.root1.title("Enter name")
+        self.root1.title("Enter IP")
         self.root1.geometry("250x120")
         self.root1.resizable(False, False)
 

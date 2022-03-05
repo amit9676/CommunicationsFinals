@@ -65,8 +65,7 @@ class Server:
         self.__server.listen(15)
         self.clients_list = []
         self.threads_list = []  # all the open threads
-        self.files = os.listdir("Files")
-        #self.files = ["one", "two", "three"]  # files in the server
+        self.files = os.listdir("Files") # get files names
 
         # ------- const gui of server ----------
         self.gui = ServerGUI(self)
@@ -75,7 +74,12 @@ class Server:
         self.GuiThread.start()
         # ------- end of gui issues -----------
 
-        self.activate()
+        self.socketThread = threading.Thread(target=self.activate)
+        self.socketThread.daemon = True
+        self.socketThread.start()
+        #self.activate()
+        while self.active:
+            time.sleep(0.1)
 
     def activate(self):
         """
@@ -83,7 +87,6 @@ class Server:
         activating the client
         waiting to users to log in
         """
-        print('Ready to serve..')
         counter = 1
 
         while self.active:
@@ -96,7 +99,6 @@ class Server:
                 th.start()
             except:
                 print("Server Disconnected")
-            print(self.clients_list)
 
 
     def send_broadcast_tcp(self, packet):
@@ -168,16 +170,25 @@ class Server:
         if self.flag != 0:
             exit(0)
 
+    def sendIinitialData(self):
+        """
+        arrange and send update to users about all the loged in clients
+        """
+        list = self.updateUsers()
+
+        initialData = ("initialData", self.files,list)
+        self.send_broadcast_tcp(initialData)  # send the update to all the client users
+
     def updateUsers(self):
         """
         arrange and send update to users about all the loged in clients
         """
-        list = ["update"]
+        list = []
         for c in self.clients_list:  # make list of all active clients
             if c.active == True:
                 list.append(c.name)
 
-        self.send_broadcast_tcp(list)  # send the update to all the client users
+        return list
 
     def validate(self, name, requester: SingleClient):
         """
@@ -225,7 +236,6 @@ class Server:
         except Exception as e:
             print(str(e))
 
-        print(segments)
         self.fileSender(client, filename, size, s, segments,
                         requester, fileExtension)  # continue to send this file via the algorithm <3
 
@@ -296,6 +306,9 @@ class Server:
             client.send(data_string)
 
             message, address = udp.recvfrom(1024)  # expecting to: ("ready", time.time())
+            serverAck = ("ack",)
+            ackPcket = pickle.dumps(serverAck)
+            udp.sendto(ackPcket, address)
             currentTime = time.time()
 
             """----------------------------------------------- ALGORITHM ------------------------------------------------"""
@@ -303,7 +316,7 @@ class Server:
             opened_data = pickle.loads(message)
             rtt = (currentTime - opened_data[1]) * 3  # taking time of the first packet sent to get appx time
             parameters = [1, 0, 32, 16]  # cwindow counter, ackCounter, maxWindow, therehold
-            proceedOrCnacel = [1]  # flag 1 == none occures about proceed/cancel  2 == proceed, means to continue the download, 3 == the client canceled the download
+            proceedOrCnacel = [0]  # flag 1 == none occures about proceed/cancel  2 == proceed, means to continue the download, 3 == the client canceled the download
 
             ackThread = threading.Thread(target=self.ackReceiver, args=(
                 parameters, udp, segments, proceedOrCnacel, requester, filename, fileExt))  # responsible to update about "ack" from client, look in decp of func
@@ -325,8 +338,11 @@ class Server:
                         segment2 = ("halfway",)
                         data_string2 = pickle.dumps(segment2)
                         udp.sendto(data_string2, address)
-                        while proceedOrCnacel[0] == 1:
-                            pass
+                        tt = 0
+                        while proceedOrCnacel[0] == 0 or proceedOrCnacel[0] == 1:
+                            if(proceedOrCnacel[0] == 0):
+                                udp.sendto(data_string2, address)
+                            time.sleep(1)
 
                         # if procOrCancel[0] == 2 - there is nothing to do, just continue!
 
@@ -377,6 +393,7 @@ class Server:
         except Exception as e:
             print(str(e))
             self.endFileClosing(udp, host, port)
+            self.send_broadcast_tcp(("downloadFailed",))
 
     def ackReceiver(self, parameters, udp, segments, proceedOrCancel, requester, filename, fileExt):
         """
@@ -403,16 +420,27 @@ class Server:
                 except:
                     continue
 
-            elif (ack[0] == "halfway"):  # downloading is on halfway stage, user decides to proceed/cancel
+            elif (ack[0] == "halfwayAck"):
+                """server knows client knows that client has to chose if to continue download
+                or cancel it"""
+                if proceedOrCancel[0] == 0:
+                    proceedOrCancel[0] = 1
+            elif (ack[0] == "halfway"):
+                """server got response from client if to proceed or cancel file download"""
                 if ack[1] == "proceed":
                     proceedOrCancel[0] = 2
+                    proceedAckPacket = ("proceedAck",)
+                    data_string = pickle.dumps(proceedAckPacket)
+                    udp.sendto(data_string, address)
                 else:
                     proceedOrCancel[0] = 3
                     self.gui.insertUpdates(str(requester) + " canceled download of " + str(filename + fileExt))
+            elif(ack[0] == "ready"):
+                """in case we got extra ready packets (as client may send more than one due to unstable
+                communication), we ignore the extras"""
+                pass
             else:
                 break
-
-        print("reciever Done")
         """----------------------------------------------- ALGORITHM ------------------------------------------------"""
 
     def endFileClosing(self, udp, host, port):
@@ -422,12 +450,12 @@ class Server:
         :param host: ip_server
         :param port: port_socket
         """
+        self.ports[port] = True
         notack = ("notack",)
         notack_data = pickle.dumps(notack)
         udp.sendto(notack_data, (host, port))
-        print("done")
         udp.close()
-        self.ports[port] = True
+
 
     def clientListen(self, client_socket):
         """
@@ -451,18 +479,18 @@ class Server:
                     self.send_broadcast_tcp(packet)
 
                 elif (packet[0] == "update"):  # update
-                    self.updateUsers()
+                    list = self.updateUsers()
+                    packet = ("update",list)
+                    self.send_broadcast_tcp(packet)
 
                 elif packet[0] == "download":  # download
                     # starting in another thread the process of downloading with the client
                     fileNameandExtension = packet[1].split(".")
                     fileNameandExtension[1] = "." + fileNameandExtension[1]
-                    print(fileNameandExtension)
                     fileSenderThread = threading.Thread(target=self.fetchFile,
                                                         args=(fileNameandExtension[0],fileNameandExtension[1], client_socket, currentClient.name))
                     fileSenderThread.daemon = True
                     fileSenderThread.start()
-
                     self.gui.insertUpdates(
                         str(currentClient.name) + " downloading " + str(packet[1]))  # inform gui to print it
 
@@ -471,6 +499,9 @@ class Server:
                     packet = ("filesRequest", self.files)
                     files = pickle.dumps(packet)
                     client_socket.send(files)
+
+                elif(packet[0] == "initialStart"):
+                    self.sendIinitialData()
 
                 elif (packet[0] == "private"):
                     if (self.private(packet)):

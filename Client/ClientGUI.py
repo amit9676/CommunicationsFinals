@@ -153,7 +153,7 @@ class GUI:
         """
         self.t1.configure(state="normal", cursor="arrow")
         self.t1.delete('1.0', END)
-        for p in range(1, len(packet)):
+        for p in range(0, len(packet)):
             self.t1.insert(INSERT, str(packet[p]) + "\n")  # --add text here--
         self.t1.configure(state="disabled", cursor="arrow")
 
@@ -220,7 +220,6 @@ class GUI:
         """
         responsible to represent the choosen file from the file list that available to be downloaded
         """
-        print("here")
         self.w['menu'].delete(0, 'end')
         for opt in self.client.files:
             self.w['menu'].add_command(label=opt, command=lambda x=opt: self.setFilesAid(x))
