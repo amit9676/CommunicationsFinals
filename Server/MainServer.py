@@ -112,7 +112,7 @@ class Server:
         try:
             for client in self.clients_list:
                 c = client
-                if c.active == True:
+                if c.active == True or packet[0] == "serverDown":
                     c.client_sock.send(data_string)
         except Exception as e:
             self.terminate_client(c)

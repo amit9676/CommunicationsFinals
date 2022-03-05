@@ -92,6 +92,7 @@ class Client:
         self.initGui = True  # flag, init == initialize process
         self.confirmedName = "Waiting"  # flag for validation name of client
         self.gui = ClientGUI.GUI(self)
+        self.gui.nameRequest()
         self.initGui = False
         print("connect")
         self.GuiThread = threading.Thread(target=self.gui.basicGUI)

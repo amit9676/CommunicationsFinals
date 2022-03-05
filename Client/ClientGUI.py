@@ -21,8 +21,6 @@ class GUI:
         # this is flags for the "init name" proccess of the user
         self.GuiDone = False
         self.initGui = True
-        self.nameRequest()
-        self.initGui = False
 
     def nameRequest(self):
         """
@@ -49,6 +47,7 @@ class GUI:
         self.root1.protocol("WM_DELETE_WINDOW",
                             self.client.stop)  # if window closed in place of inputed name, shut down client
         self.root1.mainloop()
+        self.initGui = False
 
     def proceed(self):
         """
