@@ -147,7 +147,10 @@ class Client:
         communication may not always be relaiable, there are lots of them"""
         try:
             while fileAcceptingMode[0] != 3: #while we are accepting packets..
-                message, address = udp.recvfrom(1124)  # waiting to recv packet from server
+                try:
+                    message, address = udp.recvfrom(1124)  # waiting to recv packet from server
+                except:
+                    continue
                 packet = pickle.loads(message)
                 if(packet[0] == "ack"):
                     #server knows we are connected, start recieving files!
@@ -166,7 +169,8 @@ class Client:
                     """file data packet, add it to the collection"""
                     fileAcceptingMode[0] = 1
                     self.filePackedReieved(segments,packet,udp,host,port,size)
-        except:
+        except Exception as e:
+            print(e)
             pass
 
 
@@ -207,7 +211,6 @@ class Client:
         data_string = pickle.dumps(packet)
 
         # send packet
-        print("client sent")
         fileAcceptingMode = [0]
         """current file transfer mode"""
         #0 = not established udp yet
@@ -234,7 +237,6 @@ class Client:
         udp.close()  # end of progress
 
     def recieveFile(self, filename, size, udp, sizeOfSegments, host, port, segments, fileExt,fileAcceptingMode):
-        # print(f"active threads: {threading.active_count()}")
         """
         responsible manage the file recieving operation
         :param filename: String_name
@@ -294,14 +296,20 @@ class Client:
         :param filename: string_name
         :param segments: dictionary, all the packets arranged as: key - serial number of the packet, value - the content
         """
-        # for key in segments.keys():
-        #     print(key)
         try:
             filePath = tkinter.filedialog.asksaveasfilename(
                                                             filetypes=[("Text file",".txt"),
                                                                        ("Photo",".jpg"),
                                                                        ("All files",".*"),])
             lastchar = "a"
+
+            fileparts = fileNameandExtension = filePath.split("/")
+            print(fileparts)
+            print("---")
+            if(fileparts[0] == ''):
+                print("hi")
+            if(filePath[-4:] != fileExt and '.' not in filePath and fileparts != ''):
+                filePath += fileExt
             try:
                 with open(filePath, "wb") as file:  # open new file
                     for i in range(0, len(segments)):
@@ -313,7 +321,6 @@ class Client:
                 # transfer the data to gui to represent it
                 self.gui.downloadingInfo.set("file downloaded, last byte is " + str(lastchar))
             except Exception as e:
-                print("im here")
                 print(str(e))
                 self.gui.downloadingInfo.set("download canceled")
             self.gui.downloadButton["state"] = "normal"
@@ -434,7 +441,3 @@ class Client:
         self.initGui = True  # flag, init == initialize process
         self.confirmedName = "Waiting"  # flag for validation name of client
         self.initGui = False
-
-
-if __name__ == '__main__':
-    c = Client(1)
