@@ -303,12 +303,8 @@ class Client:
                                                                        ("All files",".*"),])
             lastchar = "a"
 
-            fileparts = fileNameandExtension = filePath.split("/")
-            print(fileparts)
-            print("---")
-            if(fileparts[0] == ''):
-                print("hi")
-            if(filePath[-4:] != fileExt and '.' not in filePath and fileparts != ''):
+            fileparts = filePath.split("/")
+            if(filePath[-4:] != fileExt and '.' not in filePath and fileparts[0] != ''):
                 filePath += fileExt
             try:
                 with open(filePath, "wb") as file:  # open new file
