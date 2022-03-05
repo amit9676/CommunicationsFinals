@@ -318,6 +318,11 @@ class Server:
 
             opened_data = pickle.loads(message)
             rtt = (currentTime - opened_data[1]) * 3  # taking time of the first packet sent to get appx time
+            if(rtt <0):
+                rtt*=-1
+            #in the tests, for some reason the time when the ready packet arrived to server was lower than the time
+            #the client marked at sending, so multiplying in -1 was nesesary
+
             parameters = [1, 0, 32, 16]  # cwindow counter, ackCounter, maxWindow, therehold
             proceedOrCnacel = [0]  # flag 1 == none occures about proceed/cancel  2 == proceed, means to continue the download, 3 == the client canceled the download
 
@@ -356,10 +361,6 @@ class Server:
 
                     if (i >= len(segments)):  # there is no segments to send anymore (for ex we window size is 10, but there was only 5 segments left)
                         break
-
-                    #segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data
-                    #data_string = pickle.dumps(segment)
-                    #udp.sendto(data_string, address)
 
                     if all_keys[i] in segments:
                         segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data

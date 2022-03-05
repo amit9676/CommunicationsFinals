@@ -226,6 +226,9 @@ class Client:
         so as long we didnt get any ack from the server, we repeatedly send ready packet
         every second"""
         while(fileAcceptingMode[0] == 0):
+            reqTime = time.time()
+            packet = ("ready", reqTime)
+            data_string = pickle.dumps(packet)
             udp.sendto(data_string, (host, port))
             time.sleep(1)
 
@@ -303,6 +306,7 @@ class Client:
                                                                        ("All files",".*"),])
             lastchar = "a"
 
+            #if client entered empty filename, or pressed close on where to save window, than do not save file
             try:
                 fileparts = filePath.split("/")
                 if (filePath[-4:] != fileExt and '.' not in filePath and fileparts[0] != ''):
@@ -362,10 +366,6 @@ class Client:
                 elif packet[0] == "downloadFailed" and self.gui.GuiDone:  # command to gui to notify user: invalid message has been sent
                     self.gui.insertMessage("download attempt failed, please try again")
                     self.gui.downloadButton["state"] = "normal"
-                # elif packet[0] == "filesRequest":  # start process of downloading file
-                #     print("recieved")
-                #     self.files = packet[1]
-                #     self.gui.displayFiles()
                 elif packet[0] == "update":  # an update of details from the server, command to gui to represent it to user
                     self.gui.insertUsers(packet[1])
                 elif packet[0] == "initialData":
