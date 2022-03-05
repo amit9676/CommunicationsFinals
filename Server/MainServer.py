@@ -114,7 +114,6 @@ class Server:
                 c = client
                 if c.active == True or packet[0] == "serverDown":
                     c.client_sock.send(data_string)
-                    print("done")
         except Exception as e:
             self.terminate_client(c)
             if len(self.clients_list) > 0:
@@ -315,8 +314,6 @@ class Server:
             """----------------------------------------------- ALGORITHM ------------------------------------------------"""
 
             opened_data = pickle.loads(message)
-
-            print(opened_data)
             rtt = (currentTime - opened_data[1]) * 3  # taking time of the first packet sent to get appx time
             parameters = [1, 0, 32, 16]  # cwindow counter, ackCounter, maxWindow, therehold
             proceedOrCnacel = [0]  # flag 1 == none occures about proceed/cancel  2 == proceed, means to continue the download, 3 == the client canceled the download
@@ -365,7 +362,6 @@ class Server:
                         segment = (all_keys[i], segments[all_keys[i]])  # segment[0] - serial num, segment[1] - data
                         data_string = pickle.dumps(segment)
                         udp.sendto(data_string, address)
-                        print(f"packet: {packet}")
                     else:
                         continue
 
@@ -417,7 +413,6 @@ class Server:
             except:
                 return
             ack = pickle.loads(message)  # make that packet back to tupple
-            print(ack)
             if (ack[0] == "ack"):  # got ack from client
                 try:
                     del segments[ack[1]]
