@@ -18,6 +18,7 @@ class ServerGUI:
         self.__root = Tk()
         self.__widthSize = 500
         self.__HeightSize = 200
+        self.__root.title("Server")
         self.__root.geometry(str(self.__widthSize) + "x" + str(self.__HeightSize))
         self.__root.resizable(False, False)
         self.__t = Text(self.__root, width=60, height=11)
